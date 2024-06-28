@@ -92,7 +92,7 @@ extras_require["experimental"] = [
     # xlearn requires cmake to be pre-installed
     "xlearn==0.40a1",
     # VW C++ binary needs to be installed manually for some code to work
-    "vowpalwabbit>=8.9.0,<9",
+    "vowpalwabbit>=9.9.0,<10",
 ]
 extras_require["nni"] = [
     # nni needs to be upgraded
