@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Recommenders contributors.
 # Licensed under the MIT License.
 
 import os
@@ -198,7 +198,7 @@ def load_pandas_df(
     """
     size = size.lower()
     if size not in DATA_FORMAT and size not in MOCK_DATA_FORMAT:
-        raise ValueError(ERROR_MOVIE_LENS_SIZE)
+        raise ValueError(f"Size: {size}. " + ERROR_MOVIE_LENS_SIZE)
 
     if header is None:
         header = DEFAULT_HEADER
@@ -276,7 +276,7 @@ def load_item_df(
     """
     size = size.lower()
     if size not in DATA_FORMAT:
-        raise ValueError(ERROR_MOVIE_LENS_SIZE)
+        raise ValueError(f"Size: {size}. " + ERROR_MOVIE_LENS_SIZE)
 
     with download_path(local_cache_path) as path:
         filepath = os.path.join(path, "ml-{}.zip".format(size))
@@ -421,7 +421,7 @@ def load_spark_df(
     """
     size = size.lower()
     if size not in DATA_FORMAT and size not in MOCK_DATA_FORMAT:
-        raise ValueError(ERROR_MOVIE_LENS_SIZE)
+        raise ValueError(f"Size: {size}. " + ERROR_MOVIE_LENS_SIZE)
 
     if size in MOCK_DATA_FORMAT:
         # generate fake data
@@ -550,7 +550,7 @@ def download_movielens(size, dest_path):
         dest_path (str): File path for the downloaded file
     """
     if size not in DATA_FORMAT:
-        raise ValueError(ERROR_MOVIE_LENS_SIZE)
+        raise ValueError(f"Size: {size}. " + ERROR_MOVIE_LENS_SIZE)
 
     url = "https://files.grouplens.org/datasets/movielens/ml-" + size + ".zip"
     dirs, file = os.path.split(dest_path)
@@ -582,7 +582,7 @@ def unique_columns(df, *, columns):
     return not df[columns].duplicated().any()
 
 
-class MockMovielensSchema(pa.SchemaModel):
+class MockMovielensSchema(pa.DataFrameModel):
     """
     Mock dataset schema to generate fake data for testing purpose.
     This schema is configured to mimic the Movielens dataset
@@ -596,10 +596,18 @@ class MockMovielensSchema(pa.SchemaModel):
 
     # Some notebooks will do a cross join with userID and itemID,
     # a sparse range for these IDs can slow down the notebook tests
-    userID: Series[int] = Field(in_range={"min_value": 1, "max_value": 50}, alias=DEFAULT_USER_COL)
-    itemID: Series[int] = Field(in_range={"min_value": 1, "max_value": 50}, alias=DEFAULT_ITEM_COL)
-    rating: Series[float] = Field(in_range={"min_value": 1, "max_value": 5}, alias=DEFAULT_RATING_COL)
-    timestamp: Series[int] = Field(in_range={"min_value": 0, "max_value": 1e9}, alias=DEFAULT_TIMESTAMP_COL)
+    userID: Series[int] = Field(
+        in_range={"min_value": 1, "max_value": 50}, alias=DEFAULT_USER_COL
+    )
+    itemID: Series[int] = Field(
+        in_range={"min_value": 1, "max_value": 50}, alias=DEFAULT_ITEM_COL
+    )
+    rating: Series[float] = Field(
+        in_range={"min_value": 1, "max_value": 5}, alias=DEFAULT_RATING_COL
+    )
+    timestamp: Series[int] = Field(
+        in_range={"min_value": 0, "max_value": 1e9}, alias=DEFAULT_TIMESTAMP_COL
+    )
     title: Series[str] = Field(eq="foo", alias=DEFAULT_TITLE_COL)
     genre: Series[str] = Field(eq="genreA|0", alias=DEFAULT_GENRE_COL)
 

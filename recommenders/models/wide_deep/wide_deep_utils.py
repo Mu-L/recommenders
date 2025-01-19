@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Recommenders contributors.
 # Licensed under the MIT License.
 
 import tensorflow as tf
@@ -109,11 +109,11 @@ def _build_deep_columns(
     deep_columns = [
         # User embedding
         tf.feature_column.embedding_column(
-            categorical_column=user_ids, dimension=user_dim, max_norm=user_dim ** 0.5
+            categorical_column=user_ids, dimension=user_dim, max_norm=user_dim**0.5
         ),
         # Item embedding
         tf.feature_column.embedding_column(
-            categorical_column=item_ids, dimension=item_dim, max_norm=item_dim ** 0.5
+            categorical_column=item_ids, dimension=item_dim, max_norm=item_dim**0.5
         ),
     ]
     # Item feature
@@ -161,11 +161,15 @@ def build_model(
     Returns:
         tf.estimator.Estimator: Model
     """
-    # TensorFlow training log frequency setup
+    gpu_config = tf.compat.v1.ConfigProto()
+    gpu_config.gpu_options.allow_growth = True  # dynamic memory allocation
+
+    # TensorFlow training setup
     config = tf.estimator.RunConfig(
         tf_random_seed=seed,
         log_step_count_steps=log_every_n_iter,
         save_checkpoints_steps=save_checkpoints_steps,
+        session_config=gpu_config,
     )
 
     if len(wide_columns) > 0 and len(deep_columns) == 0:

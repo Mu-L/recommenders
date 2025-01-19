@@ -1,5 +1,6 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Recommenders contributors.
 # Licensed under the MIT License.
+
 
 import os
 import pytest
@@ -28,7 +29,8 @@ def test_prepare_hparams(deeprec_resource_path, must_exist_attributes):
             "xdeepfmresources.zip",
         )
     hparams = prepare_hparams(yaml_file)
-    assert hasattr(hparams, must_exist_attributes)
+
+    assert hasattr(hparams, must_exist_attributes) is True
 
 
 @pytest.mark.gpu
@@ -42,6 +44,6 @@ def test_load_yaml_file(deeprec_resource_path):
             data_path,
             "xdeepfmresources.zip",
         )
-
     config = load_yaml(yaml_file)
+
     assert config is not None

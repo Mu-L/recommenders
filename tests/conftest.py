@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Recommenders contributors.
 # Licensed under the MIT License.
 
 # NOTE: This file is used by pytest to inject fixtures automatically. As it is explained in the documentation
@@ -75,7 +75,6 @@ def spark(tmp_path_factory, app_name="Sample", url="local[*]"):
     Returns:
         SparkSession: new Spark session
     """
-
     with TemporaryDirectory(dir=tmp_path_factory.getbasetemp()) as td:
         config = {
             "spark.local.dir": td,
@@ -320,10 +319,10 @@ def notebooks():
             "cornac_bivae_deep_dive.ipynb",
         ),
         "xlearn_fm_deep_dive": os.path.join(
-            folder_notebooks, "02_model_hybrid", "fm_deep_dive.ipynb"
+            folder_notebooks, "02_model_collaborative_filtering", "fm_deep_dive.ipynb"
         ),
         "lightfm_deep_dive": os.path.join(
-            folder_notebooks, "02_model_hybrid", "lightfm_deep_dive.ipynb"
+            folder_notebooks, "02_model_collaborative_filtering", "lightfm_deep_dive.ipynb"
         ),
         "evaluation": os.path.join(folder_notebooks, "03_evaluate", "evaluation.ipynb"),
         "evaluation_diversity": os.path.join(
@@ -334,6 +333,9 @@ def notebooks():
         ),
         "nni_tuning_svd": os.path.join(
             folder_notebooks, "04_model_select_and_optimize", "nni_surprise_svd.ipynb"
+        ),
+        "benchmark_movielens": os.path.join(
+            folder_notebooks, "06_benchmarks", "movielens.ipynb"
         ),
     }
     return paths

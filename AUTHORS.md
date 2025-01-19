@@ -1,9 +1,14 @@
+<!--
+Copyright (c) Recommenders contributors.
+Licensed under the MIT License.
+-->
+
 Contributors to Recommenders 
 ============================
 Recommenders is developed and maintained by a community of people interested in exploring recommendation algorithms and how best to deploy them in industry settings. The goal is to accelerate the workflow of any individual or organization working on recommender systems. Everyone is encouraged to contribute at any level to add and improve the implemented algorithms, notebooks and utilities.
 
 <p align="center">
-  <img src="https://contributors-img.web.app/image?repo=microsoft/recommenders" width = 500/>
+  <img src="https://contributors-img.web.app/image?repo=recommenders-team/recommenders" width = 500/>
 </p>
 
 Maintainers (sorted alphabetically)
@@ -27,12 +32,13 @@ They have admin access to the repo and provide support reviewing issues and pull
 * **[Miguel González-Fierro](https://github.com/miguelfierro)**
    * Recommendation algorithms review, development and optimization.
    * Reco utils review, development and optimization.
-   * Github statistics.
    * Continuous integration build / test setup.
 * **[Scott Graham](https://github.com/gramhagen)**
    * Improving documentation
    * VW notebook
-* **[Tao Wu](https://github.com/wutaomsft)**
+* **[Simon Zhao](https://github.com/simonyansenzhao)**
+   * SARplus algorithm upgrade
+* **[Tao Wu](https://github.com/wav8k)**
    * Improving documentation
 
 
@@ -45,6 +51,8 @@ To contributors: please add your name to the list when you submit a patch to the
 * **[Aaron He](https://github.com/AaronHeee)**
    * Reco utils of NCF
    * Deep dive notebook demonstrating the use of NCF
+* **[Aaron Palpallatoc](https://github.com/ubergonmx)**
+   * Corrected variable in pickle dump in `mind_utils.ipynb` notebook
 * **[Abir Chakraborty](https://github.com/aeroabir)**
    * Self-Attentive Sequential Recommendation (SASRec)
    * Sequential Recommendation Via Personalized Transformer (SSEPT)
@@ -67,6 +75,8 @@ To contributors: please add your name to the list when you submit a patch to the
    * SAR PySpark improvement
 * **[Daniel Schneider](https://github.com/danielsc)**
    * FastAI notebook
+* **[David Davó](https://github.com/daviddavo)**
+   * Added R-Precision metric
 * **[Evgenia Chroni](https://github.com/EvgeniaChroni)**
    * Multinomial VAE algorithm
    * Standard VAE algorithm
@@ -120,8 +130,6 @@ To contributors: please add your name to the list when you submit a patch to the
    * Windows test pipelines
 * **[Satyadev Ntv](https://github.com/satyadevntv)**
    * GeoIMC algorithm
-* **[Simon Zhao](https://github.com/simonzhaoms)**
-   * SARplus algorithm upgrade
 * **[Yan Zhang](https://github.com/YanZhangADS)**
    * Diversity metrics including coverage, novelty, diversity, and serendipity
    * Diversity metrics evaluation sample notebook

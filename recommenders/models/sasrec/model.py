@@ -1,5 +1,6 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Recommenders contributors.
 # Licensed under the MIT License.
+
 import random
 import numpy as np
 from tqdm import tqdm
@@ -72,7 +73,7 @@ class MultiHeadAttention(tf.keras.layers.Layer):
             tf.expand_dims(key_masks, 1), [1, tf.shape(queries)[1], 1]
         )  # (h*N, T_q, T_k)
 
-        paddings = tf.ones_like(outputs) * (-(2 ** 32) + 1)
+        paddings = tf.ones_like(outputs) * (-(2**32) + 1)
         # outputs, (h*N, T_q, T_k)
         outputs = tf.where(tf.equal(key_masks, 0), paddings, outputs)
 
@@ -85,7 +86,7 @@ class MultiHeadAttention(tf.keras.layers.Layer):
             tf.expand_dims(tril, 0), [tf.shape(outputs)[0], 1, 1]
         )  # (h*N, T_q, T_k)
 
-        paddings = tf.ones_like(masks) * (-(2 ** 32) + 1)
+        paddings = tf.ones_like(masks) * (-(2**32) + 1)
         # outputs, (h*N, T_q, T_k)
         outputs = tf.where(tf.equal(masks, 0), paddings, outputs)
 
@@ -239,7 +240,7 @@ class EncoderLayer(tf.keras.layers.Layer):
 
         Args:
             x (tf.Tensor): Input tensor.
-            training (tf.Tensor): Training tensor.
+            training (Boolean): True if in training mode.
             mask (tf.Tensor): Mask tensor.
 
         Returns:
@@ -304,7 +305,7 @@ class Encoder(tf.keras.layers.Layer):
 
         Args:
             x (tf.Tensor): Input tensor.
-            training (tf.Tensor): Training tensor.
+            training (Boolean): True if in training mode.
             mask (tf.Tensor): Mask tensor.
 
         Returns:
@@ -312,7 +313,7 @@ class Encoder(tf.keras.layers.Layer):
         """
 
         for i in range(self.num_layers):
-            x = self.enc_layers[i](x, training, mask)
+            x = self.enc_layers[i](x, training=training, mask=mask)
 
         return x  # (batch_size, input_seq_len, d_model)
 
@@ -447,7 +448,7 @@ class SASREC(tf.keras.Model):
         """
 
         seq_embeddings = self.item_embedding_layer(input_seq)
-        seq_embeddings = seq_embeddings * (self.embedding_dim ** 0.5)
+        seq_embeddings = seq_embeddings * (self.embedding_dim**0.5)
 
         # FIXME
         positional_seq = tf.expand_dims(tf.range(tf.shape(input_seq)[1]), 0)
@@ -688,7 +689,7 @@ class SASREC(tf.keras.Model):
         for epoch in range(1, num_epochs + 1):
 
             step_loss = []
-            train_loss.reset_states()
+            train_loss.reset_state()
             for step in tqdm(
                 range(num_steps), total=num_steps, ncols=70, leave=False, unit="b"
             ):

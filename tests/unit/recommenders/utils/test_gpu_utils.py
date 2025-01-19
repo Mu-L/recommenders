@@ -1,5 +1,6 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Recommenders contributors.
 # Licensed under the MIT License.
+
 
 import sys
 import pytest
@@ -7,16 +8,14 @@ import pytest
 try:
     import tensorflow as tf
     import torch
+    from recommenders.utils.gpu_utils import (
+        get_cuda_version,
+        get_cudnn_version,
+        get_gpu_info,
+        get_number_gpus,
+    )
 except ImportError:
     pass  # skip this import if we are in cpu environment
-
-
-from recommenders.utils.gpu_utils import (
-    get_cuda_version,
-    get_cudnn_version,
-    get_gpu_info,
-    get_number_gpus,
-)
 
 
 @pytest.mark.gpu
@@ -38,24 +37,26 @@ def test_clear_memory_all_gpus():
 @pytest.mark.gpu
 @pytest.mark.skipif(sys.platform == "win32", reason="Not implemented on Windows")
 def test_get_cuda_version():
-    assert get_cuda_version() > "9.0.0"
+    assert int(get_cuda_version().split(".")[0]) > 9
 
 
 @pytest.mark.gpu
 def test_get_cudnn_version():
-    assert get_cudnn_version() > "7.0.0"
+    assert int(get_cudnn_version()[0]) > 7
 
 
 @pytest.mark.gpu
 def test_cudnn_enabled():
-    assert torch.backends.cudnn.enabled == True
+    assert torch.backends.cudnn.enabled is True
 
 
 @pytest.mark.gpu
+@pytest.mark.skip(reason="This function in TF is flaky")
 def test_tensorflow_gpu():
-    assert tf.test.is_gpu_available()
+    assert len(tf.config.list_physical_devices("GPU")) > 0
 
 
 @pytest.mark.gpu
+@pytest.mark.skip(reason="This function in PyTorch is flaky")
 def test_pytorch_gpu():
     assert torch.cuda.is_available()

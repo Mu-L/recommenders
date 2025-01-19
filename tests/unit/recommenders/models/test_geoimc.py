@@ -1,12 +1,13 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Recommenders contributors.
 # Licensed under the MIT License.
 
-try:
-    import collections
-    import pytest
-    import numpy as np
-    from scipy.sparse import csr_matrix
 
+import collections
+import pytest
+import numpy as np
+from scipy.sparse import csr_matrix
+
+try:
     from recommenders.models.geoimc.geoimc_data import DataPtr
     from recommenders.models.geoimc.geoimc_predict import Inferer
     from recommenders.models.geoimc.geoimc_algorithm import IMCProblem
@@ -17,7 +18,8 @@ try:
     )
     from pymanopt.manifolds import Stiefel, SymmetricPositiveDefinite
 except:
-    pass    # skip if pymanopt not installed
+    pass  # skip if pymanopt not installed
+
 
 _IMC_TEST_DATA = [
     (

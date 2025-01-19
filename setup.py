@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Recommenders contributors.
 # Licensed under the MIT License.
 
 from os import environ
@@ -8,10 +8,10 @@ import site
 import sys
 import time
 
-# workround for enabling editable user pip installs
+# Workaround for enabling editable user pip installs
 site.ENABLE_USER_SITE = "--user" in sys.argv[1:]
 
-# version
+# Version
 here = Path(__file__).absolute().parent
 version_data = {}
 with open(here.joinpath("recommenders", "__init__.py"), "r") as f:
@@ -27,76 +27,63 @@ if HASH is not None:
     version += ".post" + str(int(time.time()))
 
 install_requires = [
-    "numpy>=1.19",  # 1.19 required by tensorflow 2.6
-    "pandas>1.0.3,<2",
-    "scipy>=1.0.0,<2",
-    "tqdm>=4.31.1,<5",
-    "matplotlib>=2.2.2,<4",
-    "scikit-learn>=0.22.1,<1.0.3",
-    "numba>=0.38.1,<1",
-    "lightfm>=1.15,<2",
-    "lightgbm>=2.2.1",
-    "memory_profiler>=0.54.0,<1",
-    "nltk>=3.4,<4",
-    "seaborn>=0.8.1,<1",
-    "transformers>=2.5.0,<5",
-    "bottleneck>=1.2.1,<2",
-    "category_encoders>=1.3.0,<2",
-    "jinja2>=2,<3.1",
-    "pyyaml>=5.4.1,<6",
-    "requests>=2.0.0,<3",
-    "cornac>=1.1.2,<2",
-    "retrying>=1.3.3",
-    "pandera[strategies]>=0.6.5",  # For generating fake datasets
-    "scikit-surprise>=1.0.6"
+    "category-encoders>=2.6.0,<3",  # requires packaging
+    "cornac>=1.15.2,<=2.2.2;python_version<='3.8'",
+    "cornac>=2.3.0,<3;python_version>='3.9'",  # requires packaging, tqdm
+    "hyperopt>=0.2.7,<1",
+    "lightgbm>=4.0.0,<5",
+    "locust>=2.12.2,<3",  # requires jinja2
+    "memory-profiler>=0.61.0,<1",
+    "nltk>=3.8.1,<4",  # requires tqdm
+    "notebook>=6.5.5,<8",  # requires ipykernel, jinja2, jupyter, nbconvert, nbformat, packaging, requests
+    "numba>=0.57.0,<1",
+    "pandas>2.0.0,<3.0.0",  # requires numpy
+    "pandera[strategies]>=0.6.5,<0.18;python_version<='3.8'",  # For generating fake datasets
+    "pandera[strategies]>=0.15.0;python_version>='3.9'",
+    "retrying>=1.3.4,<2",
+    "scikit-learn>=1.2.0,<2",  # requires scipy, and introduce breaking change affects feature_extraction.text.TfidfVectorizer.min_df
+    "scikit-surprise>=1.1.3",
+    "seaborn>=0.13.0,<1",  # requires matplotlib, packaging
+    "statsmodels<=0.14.1;python_version<='3.8'",
+    "statsmodels>=0.14.4;python_version>='3.9'",
+    "transformers>=4.27.0,<5",  # requires packaging, pyyaml, requests, tqdm
 ]
 
 # shared dependencies
 extras_require = {
-    "examples": [
-        "azure.mgmt.cosmosdb>=0.8.0,<1",
-        "hyperopt>=0.1.2,<1",
-        "ipykernel>=4.6.1,<7",
-        "jupyter>=1,<2",
-        "locust>=1,<2",
-        "papermill>=2.1.2,<3",
-        "scrapbook>=0.5.0,<1.0.0",
-    ],
     "gpu": [
-        "nvidia-ml-py3>=7.352.0",
-        # TensorFlow compiled with CUDA 11.2, cudnn 8.1
-        "tensorflow~=2.6.1;python_version=='3.6'",
-        "tensorflow~=2.7.0;python_version>='3.7'",
-        "tf-slim>=1.1.0",
-        "torch>=1.8",  # for CUDA 11 support
-        "fastai>=1.0.46,<2",
+        "fastai>=2.7.11,<3",
+        "numpy<1.25.0;python_version<='3.8'",
+        "nvidia-ml-py>=11.525.84",
+        "spacy<=3.7.5;python_version<='3.8'",
+        "tensorflow>=2.8.4,!=2.9.0.*,!=2.9.1,!=2.9.2,!=2.10.0.*,<2.16",  # Fixed TF due to constant security problems and breaking changes #2073
+        "tf-slim>=1.1.0",  # No python_requires in its setup.py
+        "torch>=2.0.1,<3",
     ],
     "spark": [
-        "databricks_cli>=0.8.6,<1",
-        "pyarrow>=0.12.1,<7.0.0",
-        "pyspark>=2.4.5,<4.0.0",
+        "pyarrow>=10.0.1",
+        "pyspark>=3.3.0,<=4",
     ],
     "dev": [
-        "black>=18.6b4,<21",
-        "pytest>=3.6.4",
-        "pytest-cov>=2.12.1",
-        "pytest-mock>=3.6.1",  # for access to mock fixtures in pytest
-        "pytest-rerunfailures>=10.2",  # to mark flaky tests
+        "black>=23.3.0",
+        "pytest>=7.2.1",
+        "pytest-cov>=4.1.0",
+        "pytest-mock>=3.10.0",  # for access to mock fixtures in pytest
     ],
 }
-# for the brave of heart
+# For the brave of heart
 extras_require["all"] = list(set(sum([*extras_require.values()], [])))
 
-# the following dependencies need additional testing
+# The following dependencies need additional testing
 extras_require["experimental"] = [
     # xlearn requires cmake to be pre-installed
     "xlearn==0.40a1",
     # VW C++ binary needs to be installed manually for some code to work
     "vowpalwabbit>=8.9.0,<9",
-]
-extras_require["nni"] = [
     # nni needs to be upgraded
     "nni==1.5",
+    "pymanopt>=0.2.5",
+    "lightfm>=1.17,<2",
 ]
 
 # The following dependency can be installed as below, however PyPI does not allow direct URLs.
@@ -106,16 +93,16 @@ extras_require["nni"] = [
 setup(
     name="recommenders",
     version=version,
-    description="Microsoft Recommenders - Python utilities for building recommender systems",
+    description="Recommenders - Python utilities for building recommendation systems",
     long_description=LONG_DESCRIPTION,
     long_description_content_type="text/markdown",
-    url="https://github.com/microsoft/recommenders",
+    url="https://github.com/recommenders-team/recommenders",
     project_urls={
-        "Documentation": "https://microsoft-recommenders.readthedocs.io/en/stable/",
-        "Wiki": "https://github.com/microsoft/recommenders/wiki",
+        "Documentation": "https://recommenders-team.github.io/recommenders/intro.html",
+        "Wiki": "https://github.com/recommenders-team/recommenders/wiki",
     },
-    author="RecoDev Team at Microsoft",
-    author_email="RecoDevTeam@service.microsoft.com",
+    author="Recommenders contributors",
+    author_email="recommenders-technical-discuss@lists.lfaidata.foundation",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
@@ -124,20 +111,21 @@ setup(
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
         "Topic :: Software Development :: Libraries :: Python Modules",
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
-        "Operating System :: Microsoft :: Windows",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "Operating System :: POSIX :: Linux",
-        "Operating System :: MacOS",
     ],
     extras_require=extras_require,
     keywords="recommendations recommendation recommenders recommender system engine "
     "machine learning python spark gpu",
     install_requires=install_requires,
     package_dir={"recommenders": "recommenders"},
-    python_requires=">=3.6, <3.10",
-    packages=find_packages(where=".", exclude=["contrib", "docs", "examples", "scenarios", "tests", "tools"]),
-    setup_requires=["numpy>=1.15"]
+    python_requires=">=3.6",
+    packages=find_packages(
+        where=".",
+        exclude=["contrib", "docs", "examples", "scenarios", "tests", "tools"],
+    ),
+    setup_requires=["numpy>=1.19"],
 )

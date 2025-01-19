@@ -1,9 +1,10 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Recommenders contributors.
 # Licensed under the MIT License.
 
-import itertools
+
 import json
 import pytest
+import itertools
 import numpy as np
 import pandas as pd
 from pandas.testing import assert_frame_equal
@@ -22,7 +23,7 @@ def test_init(header):
     assert model.col_prediction == "prediction"
     assert model.similarity_type == "jaccard"
     assert model.time_decay_half_life == 2592000
-    assert not model.time_decay_flag
+    assert model.time_decay_flag is False
     assert model.time_now is None
     assert model.threshold == 1
 
@@ -52,7 +53,7 @@ def test_predict(
     preds = model.predict(testset)
 
     assert len(preds) == 2
-    assert isinstance(preds, pd.DataFrame)
+    assert isinstance(preds, pd.DataFrame) is True
     assert preds[header["col_user"]].dtype == trainset[header["col_user"]].dtype
     assert preds[header["col_item"]].dtype == trainset[header["col_item"]].dtype
     assert preds[DEFAULT_PREDICTION_COL].dtype == trainset[header["col_rating"]].dtype
@@ -112,15 +113,13 @@ def test_sar_item_similarity(
         header["col_timestamp"], ascending=False
     )
     demo_usage_data = demo_usage_data.drop_duplicates(
-        [header["col_user"], header["col_item"]],
-        keep="first"
+        [header["col_user"], header["col_item"]], keep="first"
     )
 
     model.fit(demo_usage_data)
 
     true_item_similarity = pd.read_csv(
-        sar_settings["FILE_DIR"] + "sim_" + file + str(threshold) + ".csv",
-        index_col=0
+        sar_settings["FILE_DIR"] + "sim_" + file + str(threshold) + ".csv", index_col=0
     )
     item2index = pd.Series(model.item2index)
     index = item2index[true_item_similarity.index]
@@ -159,13 +158,16 @@ def test_user_affinity(demo_usage_data, sar_settings, header):
     model.fit(demo_usage_data)
 
     true_user_affinity = pd.read_csv(
-        sar_settings["FILE_DIR"] + "user_aff.csv",
-        index_col=0
+        sar_settings["FILE_DIR"] + "user_aff.csv", index_col=0
     )
-    sar_user_affinity = model.user_affinity[
-        model.user2index[sar_settings["TEST_USER_ID"]],
-        pd.Series(model.item2index)[true_user_affinity.columns]
-    ].toarray().flatten()
+    sar_user_affinity = (
+        model.user_affinity[
+            model.user2index[sar_settings["TEST_USER_ID"]],
+            pd.Series(model.item2index)[true_user_affinity.columns],
+        ]
+        .toarray()
+        .flatten()
+    )
     assert np.allclose(
         true_user_affinity.astype("float64"),
         sar_user_affinity.astype("float64"),
@@ -184,17 +186,20 @@ def test_user_affinity(demo_usage_data, sar_settings, header):
     model.fit(demo_usage_data)
 
     true_user_affinity = pd.read_csv(
-        sar_settings["FILE_DIR"] + "user_aff_2_months_later.csv",
-        index_col=0
+        sar_settings["FILE_DIR"] + "user_aff_2_months_later.csv", index_col=0
     )
-    sar_user_affinity = model.user_affinity[
-        model.user2index[sar_settings["TEST_USER_ID"]],
-        pd.Series(model.item2index)[true_user_affinity.columns]
-    ].toarray().flatten()
+    sar_user_affinity = (
+        model.user_affinity[
+            model.user2index[sar_settings["TEST_USER_ID"]],
+            pd.Series(model.item2index)[true_user_affinity.columns],
+        ]
+        .toarray()
+        .flatten()
+    )
     assert np.allclose(
         true_user_affinity.astype("float64"),
         sar_user_affinity.astype("float64"),
-        atol=sar_settings["ATOL"]
+        atol=sar_settings["ATOL"],
     )
 
 
@@ -226,7 +231,7 @@ def test_recommend_k_items(
 
     true_userpred = pd.read_csv(
         sar_settings["FILE_DIR"] + "userpred_" + file + str(threshold) + ".csv",
-        index_col=0
+        index_col=0,
     )
     test_results = model.recommend_k_items(
         demo_usage_data[
@@ -246,7 +251,6 @@ def test_recommend_k_items(
 
 
 def test_get_item_based_topk(header, pandas_dummy):
-
     sar = SAR(**header)
     sar.fit(pandas_dummy)
 
@@ -295,7 +299,6 @@ def test_get_item_based_topk(header, pandas_dummy):
 
 
 def test_get_popularity_based_topk(header):
-
     train_df = pd.DataFrame(
         {
             header["col_user"]: [1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4],
@@ -372,13 +375,13 @@ def test_get_normalized_scores(header):
     )
 
     assert actual.shape == (2, 7)
-    assert isinstance(actual, np.ndarray)
+    assert isinstance(actual, np.ndarray) is True
     assert np.isclose(expected, np.asarray(actual)).all()
 
 
 def test_match_similarity_type_from_json_file(header):
     # store parameters in json
-    params_str = json.dumps({'similarity_type': 'lift'})
+    params_str = json.dumps({"similarity_type": "lift"})
     # load parameters in json
     params = json.loads(params_str)
 
@@ -405,7 +408,7 @@ def test_dataset_with_duplicates(header):
         {
             header["col_user"]: [1, 1, 2, 2, 2],
             header["col_item"]: [1, 2, 1, 2, 2],
-            header["col_rating"]: [3.0, 4.0, 3.0, 4.0, 4.0]
+            header["col_rating"]: [3.0, 4.0, 3.0, 4.0, 4.0],
         }
     )
     with pytest.raises(ValueError):
@@ -419,7 +422,7 @@ def test_get_topk_most_similar_users(header):
         {
             header["col_user"]: [1, 1, 2, 2, 3, 3, 3, 3, 4, 4],
             header["col_item"]: [1, 2, 1, 2, 3, 4, 5, 6, 1, 2],
-            header["col_rating"]: [3.0, 4.0, 3.0, 4.0, 3.0, 2.0, 1.0, 5.0, 5.0, 1.0]
+            header["col_rating"]: [3.0, 4.0, 3.0, 4.0, 3.0, 2.0, 1.0, 5.0, 5.0, 1.0],
         }
     )
     model.fit(train)
@@ -443,7 +446,7 @@ def test_item_frequencies(header):
         {
             header["col_user"]: [1, 1, 2, 2, 3, 3, 3, 3, 4, 4],
             header["col_item"]: [1, 2, 1, 3, 3, 4, 5, 6, 1, 2],
-            header["col_rating"]: [3.0, 4.0, 5.0, 4.0, 3.0, 2.0, 1.0, 5.0, 1.0, 1.0]
+            header["col_rating"]: [3.0, 4.0, 5.0, 4.0, 3.0, 2.0, 1.0, 5.0, 1.0, 1.0],
         }
     )
     model.fit(train)
@@ -456,7 +459,7 @@ def test_user_frequencies(header):
         {
             header["col_user"]: [1, 1, 2, 2, 3, 3, 3, 3, 4, 4],
             header["col_item"]: [1, 2, 1, 3, 3, 4, 5, 6, 1, 2],
-            header["col_rating"]: [3.0, 4.0, 5.0, 4.0, 3.0, 2.0, 1.0, 5.0, 1.0, 1.0]
+            header["col_rating"]: [3.0, 4.0, 5.0, 4.0, 3.0, 2.0, 1.0, 5.0, 1.0, 1.0],
         }
     )
     model.fit(train)

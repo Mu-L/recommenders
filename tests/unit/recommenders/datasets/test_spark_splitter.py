@@ -1,9 +1,10 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Recommenders contributors.
 # Licensed under the MIT License.
 
+
+import pytest
 import numpy as np
 import pandas as pd
-import pytest
 from recommenders.utils.constants import (
     DEFAULT_USER_COL,
     DEFAULT_ITEM_COL,
@@ -48,6 +49,25 @@ def spark_dataset(spark):
     )
 
 
+def _if_later(data1, data2):
+    """Helper function to test if records in data1 are earlier than that in data2.
+    Returns:
+        bool: True or False indicating if data1 is earlier than data2.
+    """
+
+    max_times = data1.groupBy(DEFAULT_USER_COL).agg(
+        F.max(DEFAULT_TIMESTAMP_COL).alias("max")
+    )
+    min_times = data2.groupBy(DEFAULT_USER_COL).agg(
+        F.min(DEFAULT_TIMESTAMP_COL).alias("min")
+    )
+    all_times = max_times.join(min_times, on=DEFAULT_USER_COL).select(
+        (F.col("max") <= F.col("min"))
+    )
+
+    return all([x[0] for x in all_times.collect()])
+
+
 @pytest.mark.spark
 def test_min_rating_filter(spark_dataset):
     dfs_user = min_rating_filter_spark(spark_dataset, min_rating=5, filter_by="user")
@@ -60,8 +80,8 @@ def test_min_rating_filter(spark_dataset):
         x["count"] >= 5 for x in dfs_item.groupBy(DEFAULT_ITEM_COL).count().collect()
     ]
 
-    assert all(user_rating_counts)
-    assert all(item_rating_counts)
+    assert all(user_rating_counts) is True
+    assert all(item_rating_counts) is True
 
 
 @pytest.mark.spark
@@ -103,7 +123,7 @@ def test_chrono_splitter(spark_dataset):
 
     assert set(users_train) == set(users_test)
 
-    assert _if_later(splits[0], splits[1])
+    assert _if_later(splits[0], splits[1]) is True
 
     splits = spark_chrono_split(spark_dataset, ratio=RATIOS)
 
@@ -111,8 +131,8 @@ def test_chrono_splitter(spark_dataset):
     assert splits[1].count() / NUM_ROWS == pytest.approx(RATIOS[1], TOL)
     assert splits[2].count() / NUM_ROWS == pytest.approx(RATIOS[2], TOL)
 
-    assert _if_later(splits[0], splits[1])
-    assert _if_later(splits[1], splits[2])
+    assert _if_later(splits[0], splits[1]) is True
+    assert _if_later(splits[1], splits[2]) is True
 
 
 @pytest.mark.spark
@@ -190,22 +210,3 @@ def test_timestamp_splitter(spark_dataset):
     max_split1 = splits[1].agg(F.max(DEFAULT_TIMESTAMP_COL)).first()[0]
     min_split2 = splits[2].agg(F.min(DEFAULT_TIMESTAMP_COL)).first()[0]
     assert max_split1 <= min_split2
-
-
-def _if_later(data1, data2):
-    """Helper function to test if records in data1 are earlier than that in data2.
-    Returns:
-        bool: True or False indicating if data1 is earlier than data2.
-    """
-
-    max_times = data1.groupBy(DEFAULT_USER_COL).agg(
-        F.max(DEFAULT_TIMESTAMP_COL).alias("max")
-    )
-    min_times = data2.groupBy(DEFAULT_USER_COL).agg(
-        F.min(DEFAULT_TIMESTAMP_COL).alias("min")
-    )
-    all_times = max_times.join(min_times, on=DEFAULT_USER_COL).select(
-        (F.col("max") <= F.col("min"))
-    )
-
-    return all([x[0] for x in all_times.collect()])

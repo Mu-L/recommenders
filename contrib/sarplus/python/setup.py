@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Recommenders contributors.
 # Licensed under the MIT License.
 
 from pathlib import Path
@@ -26,10 +26,12 @@ DEPENDENCIES = [
 
 setup(
     name="pysarplus",
-    version=(Path(__file__).resolve().parent / "pysarplus" / "VERSION").read_text().strip(),
+    version=(Path(__file__).resolve().parent / "pysarplus" / "VERSION")
+    .read_text()
+    .strip(),
     description="SAR prediction for use with PySpark",
     long_description=(Path(__file__).resolve().parent / "README.md").read_text(),
-    long_description_content_type='text/markdown',
+    long_description_content_type="text/markdown",
     url="https://github.com/microsoft/recommenders/tree/main/contrib/sarplus",
     author="RecoDev Team at Microsoft",
     author_email="recodevteam@service.microsoft.com",
@@ -37,11 +39,10 @@ setup(
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "Intended Audience :: Developers",
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Mathematics",
@@ -49,7 +50,7 @@ setup(
     setup_requires=["pytest-runner"],
     install_requires=DEPENDENCIES,
     tests_require=["pytest"],
-    python_requires=">=3.6",
+    python_requires=">=3.6,<3.12",
     packages=["pysarplus"],
     package_data={"": ["VERSION"]},
     ext_modules=[
