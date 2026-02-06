@@ -194,13 +194,10 @@ def prepare_test_df(test_idx, uids, iids, uid_map, iid_map, weights):
     Returns:
         pandas.DataFrame: user-item selected for testing
     """
-    # Create DataFrame with initial columns
     test_df = pd.DataFrame({
         'uid': uids[test_idx],
         'iid': iids[test_idx]
     })
-    # Map internal indices to external IDs using dict keys
-    # Note: Assumes uid_map/iid_map keys are ordered such that list position matches internal index
     uid_map_keys = np.array(list(uid_map.keys()))
     test_df["userID"] = uid_map_keys[uids[test_idx]]
     iid_map_keys = np.array(list(iid_map.keys()))
