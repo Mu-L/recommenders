@@ -194,19 +194,24 @@ def prepare_test_df(test_idx, uids, iids, uid_map, iid_map, weights):
     Returns:
         pandas.DataFrame: user-item selected for testing
     """
-    test_df = pd.DataFrame({
-        'uid': uids[test_idx],
-        'iid': iids[test_idx]
-    })
+    test_uids = uids[test_idx]
+    test_iids = iids[test_idx]
+
     uid_map_keys = np.array(list(uid_map.keys()))
-    test_df["userID"] = uid_map_keys[uids[test_idx]]
     iid_map_keys = np.array(list(iid_map.keys()))
-    test_df["itemID"] = iid_map_keys[iids[test_idx]]
 
-    dok_weights = weights.todok()
-    test_df["rating"] = test_df.apply(lambda x: dok_weights[x.uid, x.iid], axis=1)
+    csr_weights = weights.tocsr()
+    ratings = np.array(csr_weights[test_uids, test_iids]).flatten()
 
-    return test_df[["userID", "itemID", "rating"]]
+    test_df = pd.DataFrame({
+        "userID": uid_map_keys[test_uids],
+        "itemID": iid_map_keys[test_iids],
+        "rating": ratings
+
+    })
+
+    return test_df
+
 
 
 def prepare_all_predictions(

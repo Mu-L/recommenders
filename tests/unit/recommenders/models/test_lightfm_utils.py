@@ -167,7 +167,7 @@ def test_sim_items(sim_items):
     assert sim_items.shape == (5, 2)
 
 
-pytest.mark.experimental
+@pytest.mark.experimental
 def test_prepare_test_df():
     try:
         from scipy import sparse
