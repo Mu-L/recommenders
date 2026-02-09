@@ -364,6 +364,33 @@ class WideDeepDataset(Dataset):
 # ---------------------------------------------------------------------------
 
 
+def _build_optimizer(name, params, lr=0.01, **kwargs):
+    """Build a PyTorch optimizer by name.
+
+    Args:
+        name (str): One of ``"adagrad"``, ``"adadelta"``, ``"adam"``,
+            ``"sgd"``, ``"rmsprop"``, ``"ftrl"``.
+        params: Parameters to optimise.
+        lr (float): Learning rate.
+
+    Returns:
+        torch.optim.Optimizer
+    """
+    name = name.lower()
+    if name == "adagrad":
+        return torch.optim.Adagrad(params, lr=lr)
+    elif name == "adadelta":
+        return torch.optim.Adadelta(params, lr=lr)
+    elif name == "adam":
+        return torch.optim.Adam(params, lr=lr)
+    elif name == "sgd":
+        return torch.optim.SGD(params, lr=lr, momentum=kwargs.get("momentum", 0.0))
+    elif name == "rmsprop":
+        return torch.optim.RMSprop(params, lr=lr, momentum=kwargs.get("momentum", 0.0))
+    else:
+        raise ValueError(f"Unsupported optimizer: {name}")
+
+
 def train_model(
     model,
     train_df,
@@ -375,8 +402,10 @@ def train_model(
     item_feat_col=None,
     batch_size=32,
     steps=50000,
-    wide_optimizer=None,
-    deep_optimizer=None,
+    wide_optimizer="adagrad",
+    wide_optimizer_lr=0.01,
+    deep_optimizer="adadelta",
+    deep_optimizer_lr=0.01,
     seed=None,
     eval_fn=None,
     eval_every_n_steps=None,
@@ -395,10 +424,12 @@ def train_model(
         item_feat_col (str or None): Item feature column name.
         batch_size (int): Training batch size.
         steps (int): Number of training steps (batches).
-        wide_optimizer (torch.optim.Optimizer or None): Optimizer for wide
-            parameters.  If ``None``, Adagrad with lr=0.01 is used.
-        deep_optimizer (torch.optim.Optimizer or None): Optimizer for deep
-            parameters.  If ``None``, Adadelta with lr=0.01 is used.
+        wide_optimizer (str): Optimizer name for wide parameters
+            (e.g. ``"adagrad"``).
+        wide_optimizer_lr (float): Learning rate for the wide optimizer.
+        deep_optimizer (str): Optimizer name for deep parameters
+            (e.g. ``"adadelta"``).
+        deep_optimizer_lr (float): Learning rate for the deep optimizer.
         seed (int or None): Random seed.
         eval_fn (callable or None): ``eval_fn(model, step)`` called every
             *eval_every_n_steps* steps.
@@ -415,23 +446,20 @@ def train_model(
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
 
-    # Create default optimizers if not provided
-    wide_params = []
-    deep_params = []
+    # Build optimizers *after* .to(device) so parameters are on the right device
+    wide_opt = None
+    deep_opt = None
     if model.model_type in ("wide", "wide_deep"):
         wide_params = list(model.wide_user.parameters()) + \
                       list(model.wide_item.parameters()) + \
                       list(model.wide_cross.parameters()) + \
                       [model.wide_bias]
+        wide_opt = _build_optimizer(wide_optimizer, wide_params, lr=wide_optimizer_lr)
     if model.model_type in ("deep", "wide_deep"):
         deep_params = list(model.deep_user.parameters()) + \
                       list(model.deep_item.parameters()) + \
                       list(model.dnn.parameters())
-
-    if wide_optimizer is None and wide_params:
-        wide_optimizer = torch.optim.Adagrad(wide_params, lr=0.01)
-    if deep_optimizer is None and deep_params:
-        deep_optimizer = torch.optim.Adadelta(deep_params, lr=0.01)
+        deep_opt = _build_optimizer(deep_optimizer, deep_params, lr=deep_optimizer_lr)
 
     # Dataset and DataLoader
     dataset = WideDeepDataset(
@@ -458,17 +486,17 @@ def train_model(
         loss = loss_fn(pred, rating)
 
         # Backward
-        if wide_optimizer is not None:
-            wide_optimizer.zero_grad()
-        if deep_optimizer is not None:
-            deep_optimizer.zero_grad()
+        if wide_opt is not None:
+            wide_opt.zero_grad()
+        if deep_opt is not None:
+            deep_opt.zero_grad()
 
         loss.backward()
 
-        if wide_optimizer is not None:
-            wide_optimizer.step()
-        if deep_optimizer is not None:
-            deep_optimizer.step()
+        if wide_opt is not None:
+            wide_opt.step()
+        if deep_opt is not None:
+            deep_opt.step()
 
         if step % log_every_n_steps == 0:
             logger.info("Step %d/%d – loss = %.4f", step, steps, loss.item())
