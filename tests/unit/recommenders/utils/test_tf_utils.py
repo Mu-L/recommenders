@@ -39,49 +39,47 @@ def pd_df():
 
 @pytest.mark.gpu
 def test_pandas_input_fn(pd_df):
-    df = pd_df
-
     # check dataset
-    dataset = pandas_input_fn(df)()
+    dataset = pandas_input_fn(pd_df)()
     batch = tf.compat.v1.data.make_one_shot_iterator(dataset).get_next()
     with tf.compat.v1.Session() as sess:
         features = sess.run(batch)
 
         # check the input function returns all the columns
-        assert len(features) == len(df.columns)
+        assert len(features) == len(pd_df.columns)
 
         for k, v in features.items():
-            assert k in df.columns.values
+            assert k in pd_df.columns.values
             # check if a list feature column converted correctly
             if len(v.shape) == 1:
-                assert np.array_equal(v, df[k].values)
+                assert np.array_equal(v, pd_df[k].values)
             elif len(v.shape) == 2:
-                assert v.shape[1] == len(df[k][0])
+                assert v.shape[1] == len(pd_df[k][0])
 
     # check dataset with shuffles
-    dataset = pandas_input_fn(df, shuffle=True, seed=SEED)()
+    dataset = pandas_input_fn(pd_df, shuffle=True, seed=SEED)()
     batch = tf.compat.v1.data.make_one_shot_iterator(dataset).get_next()
     with tf.compat.v1.Session() as sess:
         features = sess.run(batch)
-        print(features)
+
         # check the input function returns all the columns
-        assert len(features) == len(df.columns)
+        assert len(features) == len(pd_df.columns)
 
         for k, v in features.items():
-            assert k in df.columns.values
+            assert k in pd_df.columns.values
             # check if a list feature column converted correctly
             if len(v.shape) == 1:
-                assert not np.array_equal(v, df[k].values)
+                assert not np.array_equal(v, pd_df[k].values)
             elif len(v.shape) == 2:
-                assert v.shape[1] == len(df[k][0])
+                assert v.shape[1] == len(pd_df[k][0])
 
     # check dataset w/ label
-    dataset_with_label = pandas_input_fn(df, y_col=DEFAULT_RATING_COL)()
+    dataset_with_label = pandas_input_fn(pd_df, y_col=DEFAULT_RATING_COL)()
     batch = tf.compat.v1.data.make_one_shot_iterator(dataset_with_label).get_next()
     with tf.compat.v1.Session() as sess:
-        features, label = sess.run(batch)
+        features, _ = sess.run(batch)
         assert (
-            len(features) == len(df.columns) - 1
+            len(features) == len(pd_df.columns) - 1
         )  # label should not be in the features
 
 
