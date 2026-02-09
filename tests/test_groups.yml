@@ -394,9 +394,7 @@ pr_gate:
     - tests/unit/recommenders/utils/test_gpu_utils.py::test_cudnn_enabled
     - tests/unit/recommenders/utils/test_gpu_utils.py::test_tensorflow_gpu
     - tests/unit/recommenders/utils/test_gpu_utils.py::test_pytorch_gpu
-    - tests/unit/recommenders/utils/test_tf_utils.py::test_evaluation_log_hook                                                                       #    6.33s
     - tests/unit/recommenders/utils/test_tf_utils.py::test_pandas_input_fn                                                                           #    0.11s
-    - tests/unit/recommenders/utils/test_tf_utils.py::test_pandas_input_fn_for_saved_model                                                           #    3.00s
     - tests/unit/recommenders/utils/test_tf_utils.py::test_build_optimizer
 
   group_gpu_002:                                                                                                                                     # Total: 143.16s

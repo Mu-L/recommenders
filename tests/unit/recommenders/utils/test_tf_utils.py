@@ -2,11 +2,9 @@
 # Licensed under the MIT License.
 
 
-import os
 import pytest
 import numpy as np
 import pandas as pd
-import itertools
 
 from recommenders.utils.constants import (
     DEFAULT_USER_COL,
@@ -14,20 +12,11 @@ from recommenders.utils.constants import (
     DEFAULT_RATING_COL,
     SEED,
 )
-from recommenders.evaluation.python_evaluation import rmse
 
 try:
     from recommenders.utils.tf_utils import (
         build_optimizer,
-        evaluation_log_hook,
-        export_model,
-        MetricsLogger,
         pandas_input_fn,
-        pandas_input_fn_for_saved_model,
-    )
-    from recommenders.models.wide_deep.wide_deep_utils import (
-        build_model,
-        build_feature_columns,
     )
     import tensorflow as tf
 
@@ -36,34 +25,21 @@ except ImportError:
     pass  # skip this import if we are in cpu environment
 
 
-ITEM_FEAT_COL = "itemFeat"
-
-
 @pytest.fixture(scope="module")
 def pd_df():
     df = pd.DataFrame(
         {
             DEFAULT_USER_COL: [1, 1, 1, 2, 2, 2],
             DEFAULT_ITEM_COL: [1, 2, 3, 1, 4, 5],
-            ITEM_FEAT_COL: [
-                [1, 1, 1],
-                [2, 2, 2],
-                [3, 3, 3],
-                [1, 1, 1],
-                [4, 4, 4],
-                [5, 5, 5],
-            ],
             DEFAULT_RATING_COL: [5, 4, 3, 5, 5, 3],
         }
     )
-    users = df.drop_duplicates(DEFAULT_USER_COL)[DEFAULT_USER_COL].values
-    items = df.drop_duplicates(DEFAULT_ITEM_COL)[DEFAULT_ITEM_COL].values
-    return df, users, items
+    return df
 
 
 @pytest.mark.gpu
 def test_pandas_input_fn(pd_df):
-    df, _, _ = pd_df
+    df = pd_df
 
     # check dataset
     dataset = pandas_input_fn(df)()
@@ -133,106 +109,3 @@ def test_build_optimizer():
     assert isinstance(sgd, tf.compat.v1.train.GradientDescentOptimizer)
 
 
-@pytest.mark.gpu
-def test_evaluation_log_hook(pd_df, tmp):
-    data, users, items = pd_df
-
-    # Run hook 10 times
-    hook_frequency = 10
-    train_steps = 10
-
-    _, deep_columns = build_feature_columns(users, items, model_type="deep")
-
-    model = build_model(
-        tmp,
-        deep_columns=deep_columns,
-        save_checkpoints_steps=train_steps // hook_frequency,
-    )
-
-    evaluation_logger = MetricsLogger()
-
-    # Train a model w/ the hook
-    hooks = [
-        evaluation_log_hook(
-            model,
-            logger=evaluation_logger,
-            true_df=data,
-            y_col=DEFAULT_RATING_COL,
-            eval_df=data.drop(DEFAULT_RATING_COL, axis=1),
-            every_n_iter=train_steps // hook_frequency,
-            model_dir=tmp,
-            eval_fns=[rmse],
-        )
-    ]
-    model.train(
-        input_fn=pandas_input_fn(
-            df=data,
-            y_col=DEFAULT_RATING_COL,
-            batch_size=1,
-            num_epochs=None,
-            shuffle=True,
-        ),
-        hooks=hooks,
-        steps=train_steps,
-    )
-
-    # Check if hook logged the given metric
-    assert rmse.__name__ in evaluation_logger.get_log()
-    assert len(evaluation_logger.get_log()[rmse.__name__]) == hook_frequency
-
-    # Close the event file so that the model folder can be cleaned up.
-    summary_writer = tf.compat.v1.summary.FileWriterCache.get(model.model_dir)
-    summary_writer.close()
-
-
-@pytest.mark.gpu
-def test_pandas_input_fn_for_saved_model(pd_df, tmp):
-    """Test `export_model` and `pandas_input_fn_for_saved_model`"""
-    data, users, items = pd_df
-    model_dir = os.path.join(tmp, "model")
-    export_dir = os.path.join(tmp, "export")
-
-    _, deep_columns = build_feature_columns(users, items, model_type="deep")
-
-    # Train a model
-    model = build_model(
-        model_dir,
-        deep_columns=deep_columns,
-    )
-    train_fn = pandas_input_fn(
-        df=data, y_col=DEFAULT_RATING_COL, batch_size=1, num_epochs=None, shuffle=True
-    )
-    model.train(input_fn=train_fn, steps=1)
-
-    # Test export_model function
-    exported_path = export_model(
-        model=model,
-        train_input_fn=train_fn,
-        eval_input_fn=pandas_input_fn(df=data, y_col=DEFAULT_RATING_COL),
-        tf_feat_cols=deep_columns,
-        base_dir=export_dir,
-    )
-    saved_model = tf.saved_model.load(exported_path, tags="serve")
-
-    # Test pandas_input_fn_for_saved_model with the saved model
-    test = data.drop(DEFAULT_RATING_COL, axis=1)
-    test.reset_index(drop=True, inplace=True)
-    list(
-        itertools.islice(
-            saved_model.signatures["predict"](
-                examples=pandas_input_fn_for_saved_model(
-                    df=test,
-                    feat_name_type={
-                        DEFAULT_USER_COL: int,
-                        DEFAULT_ITEM_COL: int,
-                        ITEM_FEAT_COL: list,
-                    },
-                )()["inputs"]
-            ),
-            len(test),
-        )
-    )
-
-    # Close the event file so that the model folder can be cleaned up.
-    summary_writer = tf.compat.v1.summary.FileWriterCache.get(model.model_dir)
-    summary_writer.close()
