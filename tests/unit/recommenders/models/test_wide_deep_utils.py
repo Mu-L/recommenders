@@ -2,9 +2,9 @@
 # Licensed under the MIT License.
 
 
-import os
 import pytest
 import pandas as pd
+import numpy as np
 
 from recommenders.utils.constants import (
     DEFAULT_USER_COL,
@@ -13,14 +13,16 @@ from recommenders.utils.constants import (
 )
 
 try:
-    from recommenders.utils.tf_utils import pandas_input_fn, MODEL_DIR
+    import torch
     from recommenders.models.wide_deep.wide_deep_utils import (
+        WideDeepModel,
         build_model,
         build_feature_columns,
+        train_model,
+        predict,
     )
-    import tensorflow as tf
 except ImportError:
-    pass  # skip this import if we are in cpu environment
+    pass  # skip this import if torch is not installed
 
 
 ITEM_FEAT_COL = "itemFeat"
@@ -49,92 +51,149 @@ def pd_df():
 
 
 @pytest.mark.gpu
-def test_wide_model(pd_df, tmp):
+def test_wide_model(pd_df):
     data, users, items = pd_df
 
-    # Test wide model
-    # Test if wide column has two original features and one crossed feature
-    wide_columns, _ = build_feature_columns(
+    # Build wide-only feature columns
+    wide_columns, deep_columns = build_feature_columns(
         users, items, model_type="wide", crossed_feat_dim=10
     )
-    assert len(wide_columns) == 3
-    # Check crossed feature dimension
-    assert wide_columns[2].hash_bucket_size == 10
-    # Check model type
-    model = build_model(
-        os.path.join(tmp, "wide_" + MODEL_DIR), wide_columns=wide_columns
-    )
-    assert isinstance(model, tf.compat.v1.estimator.LinearRegressor)
-    # Test if model train works
-    model.train(
-        input_fn=pandas_input_fn(
-            df=data,
-            y_col=DEFAULT_RATING_COL,
-            batch_size=1,
-            num_epochs=None,
-            shuffle=True,
-        ),
+    # Wide config should be populated, deep should be empty
+    assert wide_columns
+    assert not deep_columns
+    assert wide_columns["crossed_feat_dim"] == 10
+
+    # Build model
+    model = build_model(wide_columns=wide_columns)
+    assert isinstance(model, WideDeepModel)
+    assert model.model_type == "wide"
+    assert hasattr(model, "wide_user")
+    assert hasattr(model, "wide_item")
+    assert hasattr(model, "wide_cross")
+    assert not hasattr(model, "dnn")
+
+    # Train for 1 step
+    model = train_model(
+        model,
+        data,
+        list(users),
+        list(items),
+        batch_size=2,
         steps=1,
     )
 
-    # Close the event file so that the model folder can be cleaned up.
-    summary_writer = tf.compat.v1.summary.FileWriterCache.get(model.model_dir)
-    summary_writer.close()
+    # Predict
+    preds = predict(model, data, list(users), list(items))
+    assert len(preds) == len(data)
 
 
 @pytest.mark.gpu
-def test_deep_model(pd_df, tmp):
+def test_deep_model(pd_df):
     data, users, items = pd_df
 
-    # Test if deep columns have user and item features
-    _, deep_columns = build_feature_columns(users, items, model_type="deep")
-    assert len(deep_columns) == 2
-    # Check model type
-    model = build_model(
-        os.path.join(tmp, "deep_" + MODEL_DIR), deep_columns=deep_columns
+    # Build deep-only feature columns
+    wide_columns, deep_columns = build_feature_columns(
+        users, items, model_type="deep"
     )
-    assert isinstance(model, tf.compat.v1.estimator.DNNRegressor)
-    # Test if model train works
-    model.train(
-        input_fn=pandas_input_fn(
-            df=data, y_col=DEFAULT_RATING_COL, batch_size=1, num_epochs=1, shuffle=False
-        )
+    assert not wide_columns
+    assert deep_columns
+
+    # Build model
+    model = build_model(deep_columns=deep_columns)
+    assert isinstance(model, WideDeepModel)
+    assert model.model_type == "deep"
+    assert hasattr(model, "deep_user")
+    assert hasattr(model, "deep_item")
+    assert hasattr(model, "dnn")
+    assert not hasattr(model, "wide_user")
+
+    # Train for a full pass over the data (1 epoch ≈ ceil(6/2) = 3 steps)
+    model = train_model(
+        model,
+        data,
+        list(users),
+        list(items),
+        batch_size=2,
+        steps=3,
     )
 
-    # Close the event file so that the model folder can be cleaned up.
-    summary_writer = tf.compat.v1.summary.FileWriterCache.get(model.model_dir)
-    summary_writer.close()
+    # Predict
+    preds = predict(model, data, list(users), list(items))
+    assert len(preds) == len(data)
 
 
 @pytest.mark.gpu
-def test_wide_deep_model(pd_df, tmp):
+def test_wide_deep_model(pd_df):
     data, users, items = pd_df
 
-    # Test if wide and deep columns have correct features
+    # Build wide+deep feature columns
     wide_columns, deep_columns = build_feature_columns(
         users, items, model_type="wide_deep"
     )
-    assert len(wide_columns) == 3
-    assert len(deep_columns) == 2
-    # Check model type
+    assert wide_columns
+    assert deep_columns
+
+    # Build model
     model = build_model(
-        os.path.join(tmp, "wide_deep_" + MODEL_DIR),
         wide_columns=wide_columns,
         deep_columns=deep_columns,
     )
-    assert isinstance(model, tf.compat.v1.estimator.DNNLinearCombinedRegressor)
-    # Test if model train works
-    model.train(
-        input_fn=pandas_input_fn(
-            df=data,
-            y_col=DEFAULT_RATING_COL,
-            batch_size=1,
-            num_epochs=None,
-            shuffle=True,
-        ),
+    assert isinstance(model, WideDeepModel)
+    assert model.model_type == "wide_deep"
+    assert hasattr(model, "wide_user")
+    assert hasattr(model, "deep_user")
+    assert hasattr(model, "dnn")
+
+    # Train for 1 step
+    model = train_model(
+        model,
+        data,
+        list(users),
+        list(items),
+        batch_size=2,
         steps=1,
     )
 
-    # Close the event file so that the model folder can be cleaned up.
-    summary_writer = tf.compat.v1.summary.FileWriterCache.get(model.model_dir)
-    summary_writer.close()
+    # Predict
+    preds = predict(model, data, list(users), list(items))
+    assert len(preds) == len(data)
+
+
+@pytest.mark.gpu
+def test_wide_deep_model_with_item_features(pd_df):
+    data, users, items = pd_df
+
+    # Build wide+deep feature columns with item features
+    wide_columns, deep_columns = build_feature_columns(
+        users,
+        items,
+        model_type="wide_deep",
+        item_feat_col=ITEM_FEAT_COL,
+        item_feat_shape=3,
+    )
+    assert deep_columns["item_feat_shape"] == 3
+
+    # Build model
+    model = build_model(
+        wide_columns=wide_columns,
+        deep_columns=deep_columns,
+    )
+    assert model.item_feat_shape == 3
+
+    # Train for 1 step
+    model = train_model(
+        model,
+        data,
+        list(users),
+        list(items),
+        item_feat_col=ITEM_FEAT_COL,
+        batch_size=2,
+        steps=1,
+    )
+
+    # Predict
+    preds = predict(
+        model, data, list(users), list(items),
+        item_feat_col=ITEM_FEAT_COL,
+    )
+    assert len(preds) == len(data)

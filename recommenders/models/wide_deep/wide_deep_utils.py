@@ -1,10 +1,154 @@
 # Copyright (c) Recommenders contributors.
 # Licensed under the MIT License.
 
-import tensorflow as tf
+import itertools
+import logging
 
-from recommenders.utils.constants import DEFAULT_USER_COL, DEFAULT_ITEM_COL
-from recommenders.utils.tf_utils import MODEL_DIR
+import numpy as np
+import pandas as pd
+import torch
+import torch.nn as nn
+from torch.utils.data import Dataset, DataLoader
+
+from recommenders.utils.constants import (
+    DEFAULT_USER_COL,
+    DEFAULT_ITEM_COL,
+    DEFAULT_RATING_COL,
+    DEFAULT_PREDICTION_COL,
+)
+
+logger = logging.getLogger(__name__)
+
+
+class WideDeepModel(nn.Module):
+    """Wide & Deep model for recommendation.
+
+    The wide component is a linear model over sparse features (user, item, and
+    their crossed interaction) that captures memorization.  The deep component
+    is a DNN over dense embeddings that captures generalization.
+
+    Reference: Cheng et al., "Wide & Deep Learning for Recommender Systems", 2016
+    https://arxiv.org/abs/1606.07792
+
+    Args:
+        n_users (int): Number of unique users.
+        n_items (int): Number of unique items.
+        model_type (str): ``"wide"``, ``"deep"``, or ``"wide_deep"``.
+        crossed_feat_dim (int): Hash bucket size for the crossed user×item feature (wide).
+        user_dim (int): User embedding dimension (deep).
+        item_dim (int): Item embedding dimension (deep).
+        item_feat_shape (int or None): Dimension of item feature vector.
+            ``None`` means no item features.
+        dnn_hidden_units (tuple of int): Hidden layer sizes for the deep component.
+        dnn_dropout (float): Dropout rate for the deep component.
+        dnn_batch_norm (bool): Whether to use batch normalization in the deep component.
+    """
+
+    def __init__(
+        self,
+        n_users,
+        n_items,
+        model_type="wide_deep",
+        crossed_feat_dim=1000,
+        user_dim=8,
+        item_dim=8,
+        item_feat_shape=None,
+        dnn_hidden_units=(128, 128),
+        dnn_dropout=0.0,
+        dnn_batch_norm=True,
+    ):
+        super().__init__()
+
+        if model_type not in ("wide", "deep", "wide_deep"):
+            raise ValueError("model_type must be 'wide', 'deep', or 'wide_deep'")
+
+        self.model_type = model_type
+        self.n_users = n_users
+        self.n_items = n_items
+        self.crossed_feat_dim = crossed_feat_dim
+
+        # --- Wide component ---
+        if model_type in ("wide", "wide_deep"):
+            self.wide_user = nn.Embedding(n_users, 1)
+            self.wide_item = nn.Embedding(n_items, 1)
+            self.wide_cross = nn.Embedding(crossed_feat_dim, 1)
+            self.wide_bias = nn.Parameter(torch.zeros(1))
+
+        # --- Deep component ---
+        if model_type in ("deep", "wide_deep"):
+            self.deep_user = nn.Embedding(
+                n_users, user_dim, max_norm=user_dim**0.5
+            )
+            self.deep_item = nn.Embedding(
+                n_items, item_dim, max_norm=item_dim**0.5
+            )
+
+            dnn_input_dim = user_dim + item_dim
+            if item_feat_shape is not None:
+                dnn_input_dim += item_feat_shape
+            self.item_feat_shape = item_feat_shape
+
+            layers = []
+            in_dim = dnn_input_dim
+            for units in dnn_hidden_units:
+                layers.append(nn.Linear(in_dim, units))
+                if dnn_batch_norm:
+                    layers.append(nn.BatchNorm1d(units))
+                layers.append(nn.ReLU())
+                if dnn_dropout > 0:
+                    layers.append(nn.Dropout(dnn_dropout))
+                in_dim = units
+            layers.append(nn.Linear(in_dim, 1))
+            self.dnn = nn.Sequential(*layers)
+
+    @staticmethod
+    def _cross_hash(user_ids, item_ids, bucket_size):
+        """Deterministic hash of (user, item) pairs into ``[0, bucket_size)``."""
+        return (
+            (user_ids.long() * 6364136223846793005 + item_ids.long()) % bucket_size
+        ).abs()
+
+    def forward(self, user_ids, item_ids, item_feats=None):
+        """Forward pass.
+
+        Args:
+            user_ids (torch.LongTensor): User index tensor of shape ``(batch,)``.
+            item_ids (torch.LongTensor): Item index tensor of shape ``(batch,)``.
+            item_feats (torch.FloatTensor or None): Item feature tensor of shape
+                ``(batch, item_feat_shape)``.  Required when the model has a deep
+                component and ``item_feat_shape`` was set at construction time.
+
+        Returns:
+            torch.Tensor: Predicted ratings of shape ``(batch,)``.
+        """
+        out = torch.zeros(user_ids.size(0), device=user_ids.device)
+
+        if self.model_type in ("wide", "wide_deep"):
+            cross_idx = self._cross_hash(user_ids, item_ids, self.crossed_feat_dim)
+            wide_out = (
+                self.wide_user(user_ids).squeeze(-1)
+                + self.wide_item(item_ids).squeeze(-1)
+                + self.wide_cross(cross_idx).squeeze(-1)
+                + self.wide_bias
+            )
+            out = out + wide_out
+
+        if self.model_type in ("deep", "wide_deep"):
+            u_emb = self.deep_user(user_ids)
+            i_emb = self.deep_item(item_ids)
+            if item_feats is not None:
+                dnn_input = torch.cat([u_emb, i_emb, item_feats], dim=-1)
+            else:
+                dnn_input = torch.cat([u_emb, i_emb], dim=-1)
+            deep_out = self.dnn(dnn_input).squeeze(-1)
+            out = out + deep_out
+
+        return out
+
+
+# ---------------------------------------------------------------------------
+# Helper functions – keep the same public names as the former TF version
+# ---------------------------------------------------------------------------
 
 
 def build_feature_columns(
@@ -19,195 +163,365 @@ def build_feature_columns(
     item_feat_shape=None,
     model_type="wide_deep",
 ):
-    """Build wide and/or deep feature columns for TensorFlow high-level API Estimator.
+    """Build wide and/or deep feature configuration dictionaries.
+
+    This is the PyTorch equivalent of the former TensorFlow
+    ``build_feature_columns`` function.  Instead of TF feature-column objects
+    it returns plain dictionaries that are later passed to :func:`build_model`.
 
     Args:
-        users (iterable): Distinct user ids.
-        items (iterable): Distinct item ids.
+        users (iterable): Distinct user IDs.
+        items (iterable): Distinct item IDs.
         user_col (str): User column name.
         item_col (str): Item column name.
-        item_feat_col (str): Item feature column name for 'deep' or 'wide_deep' model.
-        crossed_feat_dim (int): Crossed feature dimension for 'wide' or 'wide_deep' model.
-        user_dim (int): User embedding dimension for 'deep' or 'wide_deep' model.
-        item_dim (int): Item embedding dimension for 'deep' or 'wide_deep' model.
-        item_feat_shape (int or an iterable of integers): Item feature array shape for 'deep' or 'wide_deep' model.
-        model_type (str): Model type, either
-            'wide' for a linear model,
-            'deep' for a deep neural networks, or
-            'wide_deep' for a combination of linear model and neural networks.
+        item_feat_col (str or None): Item feature column name.
+        crossed_feat_dim (int): Hash bucket size for the crossed feature.
+        user_dim (int): User embedding dimension (deep).
+        item_dim (int): Item embedding dimension (deep).
+        item_feat_shape (int or None): Item feature vector length.
+        model_type (str): ``"wide"``, ``"deep"``, or ``"wide_deep"``.
 
     Returns:
-        list, list:
-        - The wide feature columns
-        - The deep feature columns. If only the wide model is selected, the deep column list is empty and viceversa.
+        tuple[dict, dict]: ``(wide_columns, deep_columns)`` configuration
+        dictionaries.  Empty dict when the component is not used.
     """
-    if model_type not in ["wide", "deep", "wide_deep"]:
-        raise ValueError("Model type should be either 'wide', 'deep', or 'wide_deep'")
+    if model_type not in ("wide", "deep", "wide_deep"):
+        raise ValueError("model_type must be 'wide', 'deep', or 'wide_deep'")
 
-    user_ids = tf.feature_column.categorical_column_with_vocabulary_list(
-        user_col, users
-    )
-    item_ids = tf.feature_column.categorical_column_with_vocabulary_list(
-        item_col, items
-    )
+    users = list(users)
+    items = list(items)
 
-    if model_type == "wide":
-        return _build_wide_columns(user_ids, item_ids, crossed_feat_dim), []
-    elif model_type == "deep":
-        return (
-            [],
-            _build_deep_columns(
-                user_ids, item_ids, user_dim, item_dim, item_feat_col, item_feat_shape
-            ),
-        )
-    elif model_type == "wide_deep":
-        return (
-            _build_wide_columns(user_ids, item_ids, crossed_feat_dim),
-            _build_deep_columns(
-                user_ids, item_ids, user_dim, item_dim, item_feat_col, item_feat_shape
-            ),
-        )
+    wide_columns = {}
+    deep_columns = {}
 
+    if model_type in ("wide", "wide_deep"):
+        wide_columns = {
+            "n_users": len(users),
+            "n_items": len(items),
+            "users": users,
+            "items": items,
+            "user_col": user_col,
+            "item_col": item_col,
+            "crossed_feat_dim": crossed_feat_dim,
+        }
 
-def _build_wide_columns(user_ids, item_ids, hash_bucket_size=1000):
-    """Build wide feature (crossed) columns. `user_ids` * `item_ids` are hashed into `hash_bucket_size`
+    if model_type in ("deep", "wide_deep"):
+        deep_columns = {
+            "n_users": len(users),
+            "n_items": len(items),
+            "users": users,
+            "items": items,
+            "user_col": user_col,
+            "item_col": item_col,
+            "user_dim": user_dim,
+            "item_dim": item_dim,
+            "item_feat_col": item_feat_col,
+            "item_feat_shape": item_feat_shape,
+        }
 
-    Args:
-        user_ids (tf.feature_column.categorical_column_with_vocabulary_list): User ids.
-        item_ids (tf.feature_column.categorical_column_with_vocabulary_list): Item ids.
-        hash_bucket_size (int): Hash bucket size.
-
-    Returns:
-        list: Wide feature columns.
-    """
-    # Including the original features in addition to the crossed one is recommended to address hash collision problem.
-    return [
-        user_ids,
-        item_ids,
-        tf.feature_column.crossed_column(
-            [user_ids, item_ids], hash_bucket_size=hash_bucket_size
-        ),
-    ]
-
-
-def _build_deep_columns(
-    user_ids, item_ids, user_dim, item_dim, item_feat_col=None, item_feat_shape=1
-):
-    """Build deep feature columns
-
-    Args:
-        user_ids (tf.feature_column.categorical_column_with_vocabulary_list): User ids.
-        item_ids (tf.feature_column.categorical_column_with_vocabulary_list): Item ids.
-        user_dim (int): User embedding dimension.
-        item_dim (int): Item embedding dimension.
-        item_feat_col (str): Item feature column name.
-        item_feat_shape (int or an iterable of integers): Item feature array shape.
-
-    Returns:
-        list: Deep feature columns.
-    """
-    deep_columns = [
-        # User embedding
-        tf.feature_column.embedding_column(
-            categorical_column=user_ids, dimension=user_dim, max_norm=user_dim**0.5
-        ),
-        # Item embedding
-        tf.feature_column.embedding_column(
-            categorical_column=item_ids, dimension=item_dim, max_norm=item_dim**0.5
-        ),
-    ]
-    # Item feature
-    if item_feat_col is not None:
-        deep_columns.append(
-            tf.feature_column.numeric_column(
-                item_feat_col, shape=item_feat_shape, dtype=tf.float32
-            )
-        )
-    return deep_columns
+    return wide_columns, deep_columns
 
 
 def build_model(
-    model_dir=MODEL_DIR,
-    wide_columns=(),
-    deep_columns=(),
-    linear_optimizer="Ftrl",
-    dnn_optimizer="Adagrad",
+    wide_columns=None,
+    deep_columns=None,
     dnn_hidden_units=(128, 128),
     dnn_dropout=0.0,
     dnn_batch_norm=True,
-    log_every_n_iter=1000,
-    save_checkpoints_steps=10000,
     seed=None,
 ):
-    """Build wide-deep model.
-
-    To generate wide model, pass wide_columns only.
-    To generate deep model, pass deep_columns only.
-    To generate wide_deep model, pass both wide_columns and deep_columns.
+    """Build a :class:`WideDeepModel` from feature configuration dicts.
 
     Args:
-        model_dir (str): Model checkpoint directory.
-        wide_columns (list of tf.feature_column): Wide model feature columns.
-        deep_columns (list of tf.feature_column): Deep model feature columns.
-        linear_optimizer (str or tf.train.Optimizer): Wide model optimizer name or object.
-        dnn_optimizer (str or tf.train.Optimizer): Deep model optimizer name or object.
-        dnn_hidden_units (list of int): Deep model hidden units. E.g., [10, 10, 10] is three layers of 10 nodes each.
-        dnn_dropout (float): Deep model's dropout rate.
-        dnn_batch_norm (bool): Deep model's batch normalization flag.
-        log_every_n_iter (int): Log the training loss for every n steps.
-        save_checkpoints_steps (int): Model checkpoint frequency.
-        seed (int): Random seed.
+        wide_columns (dict or None): Wide config from :func:`build_feature_columns`.
+        deep_columns (dict or None): Deep config from :func:`build_feature_columns`.
+        dnn_hidden_units (tuple of int): Hidden layer sizes.
+        dnn_dropout (float): Dropout rate.
+        dnn_batch_norm (bool): Batch normalization flag.
+        seed (int or None): Random seed.
 
     Returns:
-        tf.estimator.Estimator: Model
+        WideDeepModel: The constructed model.
     """
-    gpu_config = tf.compat.v1.ConfigProto()
-    gpu_config.gpu_options.allow_growth = True  # dynamic memory allocation
+    if wide_columns is None:
+        wide_columns = {}
+    if deep_columns is None:
+        deep_columns = {}
 
-    # TensorFlow training setup
-    config = tf.estimator.RunConfig(
-        tf_random_seed=seed,
-        log_step_count_steps=log_every_n_iter,
-        save_checkpoints_steps=save_checkpoints_steps,
-        session_config=gpu_config,
-    )
+    if seed is not None:
+        torch.manual_seed(seed)
 
-    if len(wide_columns) > 0 and len(deep_columns) == 0:
-        model = tf.compat.v1.estimator.LinearRegressor(
-            model_dir=model_dir,
-            config=config,
-            feature_columns=wide_columns,
-            optimizer=linear_optimizer,
-        )
-    elif len(wide_columns) == 0 and len(deep_columns) > 0:
-        model = tf.compat.v1.estimator.DNNRegressor(
-            model_dir=model_dir,
-            config=config,
-            feature_columns=deep_columns,
-            hidden_units=dnn_hidden_units,
-            optimizer=dnn_optimizer,
-            dropout=dnn_dropout,
-            batch_norm=dnn_batch_norm,
-        )
-    elif len(wide_columns) > 0 and len(deep_columns) > 0:
-        model = tf.compat.v1.estimator.DNNLinearCombinedRegressor(
-            model_dir=model_dir,
-            config=config,
-            # wide settings
-            linear_feature_columns=wide_columns,
-            linear_optimizer=linear_optimizer,
-            # deep settings
-            dnn_feature_columns=deep_columns,
-            dnn_hidden_units=dnn_hidden_units,
-            dnn_optimizer=dnn_optimizer,
-            dnn_dropout=dnn_dropout,
-            batch_norm=dnn_batch_norm,
-        )
-    else:
+    has_wide = bool(wide_columns)
+    has_deep = bool(deep_columns)
+
+    if not has_wide and not has_deep:
         raise ValueError(
-            "To generate wide model, set wide_columns.\n"
-            "To generate deep model, set deep_columns.\n"
-            "To generate wide_deep model, set both wide_columns and deep_columns."
+            "Provide wide_columns and/or deep_columns to build a model."
         )
+
+    if has_wide and has_deep:
+        model_type = "wide_deep"
+    elif has_wide:
+        model_type = "wide"
+    else:
+        model_type = "deep"
+
+    # Merge user/item counts from whichever config is present
+    cfg = wide_columns if has_wide else deep_columns
+    n_users = cfg["n_users"]
+    n_items = cfg["n_items"]
+    crossed_feat_dim = wide_columns.get("crossed_feat_dim", 1000)
+    user_dim = deep_columns.get("user_dim", 8)
+    item_dim = deep_columns.get("item_dim", 8)
+    item_feat_shape = deep_columns.get("item_feat_shape", None)
+
+    model = WideDeepModel(
+        n_users=n_users,
+        n_items=n_items,
+        model_type=model_type,
+        crossed_feat_dim=crossed_feat_dim,
+        user_dim=user_dim,
+        item_dim=item_dim,
+        item_feat_shape=item_feat_shape,
+        dnn_hidden_units=dnn_hidden_units,
+        dnn_dropout=dnn_dropout,
+        dnn_batch_norm=dnn_batch_norm,
+    )
+    return model
+
+
+# ---------------------------------------------------------------------------
+# Dataset
+# ---------------------------------------------------------------------------
+
+
+class WideDeepDataset(Dataset):
+    """PyTorch Dataset for the Wide & Deep model.
+
+    Maps raw user / item IDs to contiguous indices based on the provided
+    vocabularies.
+
+    Args:
+        df (pd.DataFrame): Data with user, item, optional item-feature, and
+            rating columns.
+        users (list): Ordered user ID vocabulary (index = embedding row).
+        items (list): Ordered item ID vocabulary.
+        user_col (str): User column name.
+        item_col (str): Item column name.
+        item_feat_col (str or None): Item feature column name.
+        y_col (str or None): Rating / label column name.
+    """
+
+    def __init__(
+        self,
+        df,
+        users,
+        items,
+        user_col=DEFAULT_USER_COL,
+        item_col=DEFAULT_ITEM_COL,
+        item_feat_col=None,
+        y_col=DEFAULT_RATING_COL,
+    ):
+        self.user2idx = {u: i for i, u in enumerate(users)}
+        self.item2idx = {it: i for i, it in enumerate(items)}
+
+        self.user_ids = torch.tensor(
+            [self.user2idx[u] for u in df[user_col]], dtype=torch.long
+        )
+        self.item_ids = torch.tensor(
+            [self.item2idx[it] for it in df[item_col]], dtype=torch.long
+        )
+
+        if item_feat_col is not None and item_feat_col in df.columns:
+            feats = df[item_feat_col].tolist()
+            self.item_feats = torch.tensor(
+                np.array(feats, dtype=np.float32), dtype=torch.float
+            )
+        else:
+            self.item_feats = None
+
+        if y_col is not None and y_col in df.columns:
+            self.ratings = torch.tensor(
+                df[y_col].values.astype(np.float32), dtype=torch.float
+            )
+        else:
+            self.ratings = None
+
+    def __len__(self):
+        return len(self.user_ids)
+
+    def __getitem__(self, idx):
+        uid = self.user_ids[idx]
+        iid = self.item_ids[idx]
+        feat = self.item_feats[idx] if self.item_feats is not None else torch.tensor([])
+        if self.ratings is not None:
+            return uid, iid, feat, self.ratings[idx]
+        return uid, iid, feat
+
+
+# ---------------------------------------------------------------------------
+# Training & prediction utilities
+# ---------------------------------------------------------------------------
+
+
+def train_model(
+    model,
+    train_df,
+    users,
+    items,
+    y_col=DEFAULT_RATING_COL,
+    user_col=DEFAULT_USER_COL,
+    item_col=DEFAULT_ITEM_COL,
+    item_feat_col=None,
+    batch_size=32,
+    steps=50000,
+    wide_optimizer=None,
+    deep_optimizer=None,
+    seed=None,
+    eval_fn=None,
+    eval_every_n_steps=None,
+    log_every_n_steps=5000,
+):
+    """Train a :class:`WideDeepModel`.
+
+    Args:
+        model (WideDeepModel): Model to train.
+        train_df (pd.DataFrame): Training data.
+        users (list): User ID vocabulary.
+        items (list): Item ID vocabulary.
+        y_col (str): Label column name.
+        user_col (str): User column name.
+        item_col (str): Item column name.
+        item_feat_col (str or None): Item feature column name.
+        batch_size (int): Training batch size.
+        steps (int): Number of training steps (batches).
+        wide_optimizer (torch.optim.Optimizer or None): Optimizer for wide
+            parameters.  If ``None``, Adagrad with lr=0.01 is used.
+        deep_optimizer (torch.optim.Optimizer or None): Optimizer for deep
+            parameters.  If ``None``, Adadelta with lr=0.01 is used.
+        seed (int or None): Random seed.
+        eval_fn (callable or None): ``eval_fn(model, step)`` called every
+            *eval_every_n_steps* steps.
+        eval_every_n_steps (int or None): Evaluation frequency.
+        log_every_n_steps (int): How often to log training loss.
+
+    Returns:
+        WideDeepModel: Trained model.
+    """
+    if seed is not None:
+        torch.manual_seed(seed)
+        np.random.seed(seed)
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device)
+
+    # Create default optimizers if not provided
+    wide_params = []
+    deep_params = []
+    if model.model_type in ("wide", "wide_deep"):
+        wide_params = list(model.wide_user.parameters()) + \
+                      list(model.wide_item.parameters()) + \
+                      list(model.wide_cross.parameters()) + \
+                      [model.wide_bias]
+    if model.model_type in ("deep", "wide_deep"):
+        deep_params = list(model.deep_user.parameters()) + \
+                      list(model.deep_item.parameters()) + \
+                      list(model.dnn.parameters())
+
+    if wide_optimizer is None and wide_params:
+        wide_optimizer = torch.optim.Adagrad(wide_params, lr=0.01)
+    if deep_optimizer is None and deep_params:
+        deep_optimizer = torch.optim.Adadelta(deep_params, lr=0.01)
+
+    # Dataset and DataLoader
+    dataset = WideDeepDataset(
+        train_df, users, items,
+        user_col=user_col, item_col=item_col,
+        item_feat_col=item_feat_col, y_col=y_col,
+    )
+    loader = DataLoader(
+        dataset, batch_size=batch_size, shuffle=True,
+        drop_last=False, num_workers=0,
+    )
+    data_iter = itertools.cycle(iter(loader))
+
+    loss_fn = nn.MSELoss()
+    model.train()
+
+    for step in range(1, steps + 1):
+        batch = next(data_iter)
+        uid, iid, feat, rating = [b.to(device) for b in batch]
+        item_feats = feat if feat.numel() > 0 else None
+
+        # Forward
+        pred = model(uid, iid, item_feats)
+        loss = loss_fn(pred, rating)
+
+        # Backward
+        if wide_optimizer is not None:
+            wide_optimizer.zero_grad()
+        if deep_optimizer is not None:
+            deep_optimizer.zero_grad()
+
+        loss.backward()
+
+        if wide_optimizer is not None:
+            wide_optimizer.step()
+        if deep_optimizer is not None:
+            deep_optimizer.step()
+
+        if step % log_every_n_steps == 0:
+            logger.info("Step %d/%d – loss = %.4f", step, steps, loss.item())
+
+        if eval_fn is not None and eval_every_n_steps and step % eval_every_n_steps == 0:
+            model.eval()
+            eval_fn(model, step)
+            model.train()
 
     return model
+
+
+def predict(
+    model,
+    df,
+    users,
+    items,
+    user_col=DEFAULT_USER_COL,
+    item_col=DEFAULT_ITEM_COL,
+    item_feat_col=None,
+    batch_size=256,
+):
+    """Generate predictions for the given dataframe.
+
+    Args:
+        model (WideDeepModel): Trained model.
+        df (pd.DataFrame): Data to predict on.
+        users (list): User ID vocabulary (same as training).
+        items (list): Item ID vocabulary (same as training).
+        user_col (str): User column name.
+        item_col (str): Item column name.
+        item_feat_col (str or None): Item feature column name.
+        batch_size (int): Batch size for prediction.
+
+    Returns:
+        list[float]: Predicted values.
+    """
+    device = next(model.parameters()).device
+    model.eval()
+
+    dataset = WideDeepDataset(
+        df, users, items,
+        user_col=user_col, item_col=item_col,
+        item_feat_col=item_feat_col, y_col=None,
+    )
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+
+    preds = []
+    with torch.no_grad():
+        for batch in loader:
+            uid, iid, feat = [b.to(device) for b in batch]
+            item_feats = feat if feat.numel() > 0 else None
+            out = model(uid, iid, item_feats)
+            preds.extend(out.cpu().tolist())
+
+    return preds
