@@ -523,6 +523,11 @@ def affinity_matrix(test_specs):
 
 
 @pytest.fixture(scope="session")
+def sasrec_data_dir(tmp_path_factory):
+    return str(tmp_path_factory.mktemp("sasrec_data"))
+
+
+@pytest.fixture(scope="session")
 def deeprec_resource_path():
     return Path(__file__).absolute().parent.joinpath("resources", "deeprec")
 

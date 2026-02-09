@@ -607,17 +607,15 @@ def test_cornac_bivae_functional(
 @pytest.mark.gpu
 @pytest.mark.notebooks
 @pytest.mark.parametrize(
-    "data_dir, num_epochs, batch_size, model_name, expected_values",
+    "num_epochs, batch_size, model_name, expected_values",
     [
         (
-            os.path.join("tests", "recsys_data", "RecSys", "SASRec-tf2", "data"),
             1,
             128,
             "sasrec",
             {"ndcg@10": 0.2297, "Hit@10": 0.3789},
         ),
         (
-            os.path.join("tests", "recsys_data", "RecSys", "SASRec-tf2", "data"),
             1,
             128,
             "ssept",
@@ -629,7 +627,7 @@ def test_sasrec_quickstart_functional(
     notebooks,
     output_notebook,
     kernel_name,
-    data_dir,
+    sasrec_data_dir,
     num_epochs,
     batch_size,
     model_name,
@@ -637,7 +635,7 @@ def test_sasrec_quickstart_functional(
 ):
     notebook_path = notebooks["sasrec_quickstart"]
     params = {
-        "data_dir": data_dir,
+        "data_dir": sasrec_data_dir,
         "num_epochs": num_epochs,
         "batch_size": batch_size,
         "model_name": model_name,
