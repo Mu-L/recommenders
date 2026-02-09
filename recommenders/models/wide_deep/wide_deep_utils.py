@@ -1,8 +1,8 @@
 # Copyright (c) Recommenders contributors.
 # Licensed under the MIT License.
 
-import itertools
 import logging
+import math
 
 import numpy as np
 import pandas as pd
@@ -73,6 +73,10 @@ class WideDeepModel(nn.Module):
             self.wide_item = nn.Embedding(n_items, 1)
             self.wide_cross = nn.Embedding(crossed_feat_dim, 1)
             self.wide_bias = nn.Parameter(torch.zeros(1))
+            # TF's LinearModel initializes weights to zero
+            nn.init.zeros_(self.wide_user.weight)
+            nn.init.zeros_(self.wide_item.weight)
+            nn.init.zeros_(self.wide_cross.weight)
 
         # --- Deep component ---
         if model_type in ("deep", "wide_deep"):
@@ -82,19 +86,28 @@ class WideDeepModel(nn.Module):
             self.deep_item = nn.Embedding(
                 n_items, item_dim, max_norm=item_dim**0.5
             )
+            # Match TF's truncated_normal initializer: stddev = 1/sqrt(dim)
+            nn.init.trunc_normal_(
+                self.deep_user.weight, std=1.0 / math.sqrt(user_dim)
+            )
+            nn.init.trunc_normal_(
+                self.deep_item.weight, std=1.0 / math.sqrt(item_dim)
+            )
 
             dnn_input_dim = user_dim + item_dim
             if item_feat_shape is not None:
                 dnn_input_dim += item_feat_shape
             self.item_feat_shape = item_feat_shape
 
+            # Layer order matches TF's DNNLinearCombinedRegressor:
+            # Linear -> ReLU -> BatchNorm -> Dropout
             layers = []
             in_dim = dnn_input_dim
             for units in dnn_hidden_units:
                 layers.append(nn.Linear(in_dim, units))
+                layers.append(nn.ReLU())
                 if dnn_batch_norm:
                     layers.append(nn.BatchNorm1d(units))
-                layers.append(nn.ReLU())
                 if dnn_dropout > 0:
                     layers.append(nn.Dropout(dnn_dropout))
                 in_dim = units
@@ -367,9 +380,12 @@ class WideDeepDataset(Dataset):
 def _build_optimizer(name, params, lr=0.01, **kwargs):
     """Build a PyTorch optimizer by name.
 
+    Default hyper-parameters are chosen to match TensorFlow v1 optimizers
+    so that training dynamics are comparable.
+
     Args:
         name (str): One of ``"adagrad"``, ``"adadelta"``, ``"adam"``,
-            ``"sgd"``, ``"rmsprop"``, ``"ftrl"``.
+            ``"sgd"``, ``"rmsprop"``.
         params: Parameters to optimise.
         lr (float): Learning rate.
 
@@ -378,9 +394,11 @@ def _build_optimizer(name, params, lr=0.01, **kwargs):
     """
     name = name.lower()
     if name == "adagrad":
-        return torch.optim.Adagrad(params, lr=lr)
+        # TF default: initial_accumulator_value=0.1
+        return torch.optim.Adagrad(params, lr=lr, initial_accumulator_value=0.1)
     elif name == "adadelta":
-        return torch.optim.Adadelta(params, lr=lr)
+        # TF defaults: rho=0.95, epsilon=1e-8
+        return torch.optim.Adadelta(params, lr=lr, rho=0.95, eps=1e-8)
     elif name == "adam":
         return torch.optim.Adam(params, lr=lr)
     elif name == "sgd":
@@ -471,40 +489,45 @@ def train_model(
         dataset, batch_size=batch_size, shuffle=True,
         drop_last=False, num_workers=0,
     )
-    data_iter = itertools.cycle(iter(loader))
 
     loss_fn = nn.MSELoss()
     model.train()
 
-    for step in range(1, steps + 1):
-        batch = next(data_iter)
-        uid, iid, feat, rating = [b.to(device) for b in batch]
-        item_feats = feat if feat.numel() > 0 else None
+    step = 0
+    while step < steps:
+        # Create a fresh iterator each epoch so data is reshuffled
+        for batch in loader:
+            step += 1
+            if step > steps:
+                break
 
-        # Forward
-        pred = model(uid, iid, item_feats)
-        loss = loss_fn(pred, rating)
+            uid, iid, feat, rating = [b.to(device) for b in batch]
+            item_feats = feat if feat.numel() > 0 else None
 
-        # Backward
-        if wide_opt is not None:
-            wide_opt.zero_grad()
-        if deep_opt is not None:
-            deep_opt.zero_grad()
+            # Forward
+            pred = model(uid, iid, item_feats)
+            loss = loss_fn(pred, rating)
 
-        loss.backward()
+            # Backward
+            if wide_opt is not None:
+                wide_opt.zero_grad()
+            if deep_opt is not None:
+                deep_opt.zero_grad()
 
-        if wide_opt is not None:
-            wide_opt.step()
-        if deep_opt is not None:
-            deep_opt.step()
+            loss.backward()
 
-        if step % log_every_n_steps == 0:
-            logger.info("Step %d/%d – loss = %.4f", step, steps, loss.item())
+            if wide_opt is not None:
+                wide_opt.step()
+            if deep_opt is not None:
+                deep_opt.step()
 
-        if eval_fn is not None and eval_every_n_steps and step % eval_every_n_steps == 0:
-            model.eval()
-            eval_fn(model, step)
-            model.train()
+            if step % log_every_n_steps == 0:
+                logger.info("Step %d/%d – loss = %.4f", step, steps, loss.item())
+
+            if eval_fn is not None and eval_every_n_steps and step % eval_every_n_steps == 0:
+                model.eval()
+                eval_fn(model, step)
+                model.train()
 
     return model
 
