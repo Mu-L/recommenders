@@ -1184,9 +1184,15 @@ def _get_item_feature_similarity(
     df = pd.merge(df1, df2, on="key", how="outer").drop("key", axis=1)
     df_item_feature_pair = df[(df["i1"] <= df["i2"])].reset_index(drop=True)
 
+    def _cosine_sim(x):
+        norm_f1 = np.linalg.norm(x.f1, 2)
+        norm_f2 = np.linalg.norm(x.f2, 2)
+        if norm_f1 == 0 or norm_f2 == 0:
+            return 0.0
+        return float(x.f1.dot(x.f2)) / float(norm_f1 * norm_f2)
+
     df_item_feature_pair[col_sim] = df_item_feature_pair.apply(
-        lambda x: float(x.f1.dot(x.f2))
-        / float(np.linalg.norm(x.f1, 2) * np.linalg.norm(x.f2, 2)),
+        _cosine_sim,
         axis=1,
     )
 
