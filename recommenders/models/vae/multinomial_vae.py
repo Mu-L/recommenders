@@ -16,13 +16,17 @@ from tensorflow.keras.callbacks import ReduceLROnPlateau, Callback
 class LossHistory(Callback):
     """This class is used for saving the validation loss and the training loss per epoch."""
 
-    def on_train_begin(self, logs={}):
+    def on_train_begin(self, logs=None):
         """Initialise the lists where the loss of training and validation will be saved."""
+        if logs is None:
+            logs = {}
         self.losses = []
         self.val_losses = []
 
-    def on_epoch_end(self, epoch, logs={}):
+    def on_epoch_end(self, epoch, logs=None):
         """Save the loss of training and validation set at the end of each epoch."""
+        if logs is None:
+            logs = {}
         self.losses.append(logs.get("loss"))
         self.val_losses.append(logs.get("val_loss"))
 
@@ -62,8 +66,10 @@ class Metrics(Callback):
         # Options to save the weights of the model for future use
         self.save_path = save_path
 
-    def on_train_begin(self, logs={}):
+    def on_train_begin(self, logs=None):
         """Initialise the list for validation NDCG@k."""
+        if logs is None:
+            logs = {}
         self._data = []
 
     def recommend_k_items(self, x, k, remove_seen=True):
@@ -100,13 +106,15 @@ class Metrics(Callback):
 
         return top_scores
 
-    def on_epoch_end(self, batch, logs={}):
+    def on_epoch_end(self, batch, logs=None):
         """At the end of each epoch calculate NDCG@k of the validation set.
 
         If the model performance is improved, the model weights are saved.
         Update the list of validation NDCG@k by adding obtained value
 
         """
+        if logs is None:
+            logs = {}
         # recommend top k items based on training part of validation set
         top_k = self.recommend_k_items(x=self.val_tr, k=self.k, remove_seen=True)
 
@@ -158,12 +166,16 @@ class AnnealingCallback(Callback):
         # total annealing steps
         self.total_anneal_steps = total_anneal_steps
 
-    def on_train_begin(self, logs={}):
+    def on_train_begin(self, logs=None):
         """Initialise a list in which the beta value will be saved at the end of each epoch."""
+        if logs is None:
+            logs = {}
         self._beta = []
 
-    def on_batch_end(self, epoch, logs={}):
+    def on_batch_end(self, epoch, logs=None):
         """At the end of each batch the beta should is updated until it reaches the values of anneal cap."""
+        if logs is None:
+            logs = {}
         self.update_count = self.update_count + 1
 
         new_beta = min(
@@ -172,8 +184,10 @@ class AnnealingCallback(Callback):
 
         K.set_value(self.beta, new_beta)
 
-    def on_epoch_end(self, epoch, logs={}):
+    def on_epoch_end(self, epoch, logs=None):
         """At the end of each epoch save the value of beta in _beta list."""
+        if logs is None:
+            logs = {}
         tmp = K.eval(self.beta)
         self._beta.append(tmp)
 
