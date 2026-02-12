@@ -22,7 +22,7 @@ try:
         predict,
     )
 except ImportError:
-    pass  # skip this import if torch is not installed
+    pass  # skip this import if we are in cpu environment
 
 
 ITEM_FEAT_COL = "itemFeat"

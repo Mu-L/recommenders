@@ -18,7 +18,7 @@ try:
         _reviews_preprocessing,
     )
 except ImportError:
-    pass  # skip if in cpu environment
+    pass  # skip this import if we are in cpu environment
 
 
 @pytest.fixture()
