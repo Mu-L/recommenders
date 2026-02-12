@@ -72,7 +72,6 @@ class WideDeepModel(nn.Module):
             self.wide_item = nn.Embedding(n_items, 1)
             self.wide_cross = nn.Embedding(crossed_feat_dim, 1)
             self.wide_bias = nn.Parameter(torch.zeros(1))
-            # TF's LinearModel initializes weights to zero
             nn.init.zeros_(self.wide_user.weight)
             nn.init.zeros_(self.wide_item.weight)
             nn.init.zeros_(self.wide_cross.weight)
@@ -85,7 +84,7 @@ class WideDeepModel(nn.Module):
             self.deep_item = nn.Embedding(
                 n_items, item_dim, max_norm=item_dim**0.5
             )
-            # Match TF's truncated_normal initializer: stddev = 1/sqrt(dim)
+            # Truncated_normal initializer: stddev = 1/sqrt(dim)
             nn.init.trunc_normal_(
                 self.deep_user.weight, std=1.0 / math.sqrt(user_dim)
             )
@@ -98,7 +97,6 @@ class WideDeepModel(nn.Module):
                 dnn_input_dim += item_feat_shape
             self.item_feat_shape = item_feat_shape
 
-            # Layer order matches TF's DNNLinearCombinedRegressor:
             # Linear -> ReLU -> BatchNorm -> Dropout
             layers = []
             in_dim = dnn_input_dim
@@ -159,7 +157,7 @@ class WideDeepModel(nn.Module):
 
 
 # ---------------------------------------------------------------------------
-# Helper functions – keep the same public names as the former TF version
+# Helper functions 
 # ---------------------------------------------------------------------------
 
 
@@ -177,9 +175,7 @@ def build_feature_columns(
 ):
     """Build wide and/or deep feature configuration dictionaries.
 
-    This is the PyTorch equivalent of the former TensorFlow
-    ``build_feature_columns`` function.  Instead of TF feature-column objects
-    it returns plain dictionaries that are later passed to :func:`build_model`.
+    It returns plain dictionaries that are later passed to :func:`build_model`.
 
     Args:
         users (iterable): Distinct user IDs.
