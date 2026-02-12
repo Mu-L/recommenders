@@ -18,6 +18,11 @@ from recommenders.utils.constants import (
 
 logger = logging.getLogger(__name__)
 
+# Multiplier from Knuth's 64-bit linear congruential generator (LCG),
+# used to hash (user, item) pairs into crossed-feature buckets.
+# Source: Knuth, "The Art of Computer Programming", Vol. 2, §3.2.1.
+CROSS_HASH_MULTIPLIER = 6364136223846793005
+
 
 class WideDeepModel(nn.Module):
     """Wide & Deep model for recommendation.
@@ -115,7 +120,7 @@ class WideDeepModel(nn.Module):
     def _cross_hash(user_ids, item_ids, bucket_size):
         """Deterministic hash of (user, item) pairs into ``[0, bucket_size)``."""
         return (
-            (user_ids.long() * 6364136223846793005 + item_ids.long()) % bucket_size
+            (user_ids.long() * CROSS_HASH_MULTIPLIER + item_ids.long()) % bucket_size
         ).abs()
 
     def forward(self, user_ids, item_ids, item_feats=None):
