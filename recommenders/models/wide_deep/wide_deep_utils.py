@@ -1,11 +1,10 @@
 # Copyright (c) Recommenders contributors.
 # Licensed under the MIT License.
 
-import logging
 import math
-
+import logging
 import numpy as np
-import pandas as pd
+
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
