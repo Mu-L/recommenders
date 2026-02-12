@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 # Multiplier from Knuth's 64-bit linear congruential generator (LCG),
 # used to hash (user, item) pairs into crossed-feature buckets.
-# Source: Knuth, "The Art of Computer Programming", Vol. 2, §3.2.1.
+# Source: Knuth, "The Art of Computer Programming", Vol. 2, 1997.
 CROSS_HASH_MULTIPLIER = 6364136223846793005
 
 

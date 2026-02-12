@@ -181,3 +181,6 @@ reports/
 
 ### pip folders
 pip-wheel*
+
+# Claude Code
+CLAUDE.md
