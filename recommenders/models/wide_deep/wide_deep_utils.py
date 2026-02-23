@@ -13,7 +13,6 @@ from recommenders.utils.constants import (
     DEFAULT_USER_COL,
     DEFAULT_ITEM_COL,
     DEFAULT_RATING_COL,
-    DEFAULT_PREDICTION_COL,
 )
 
 logger = logging.getLogger(__name__)
@@ -491,6 +490,8 @@ def train_model(
     while step < steps:
         # Create a fresh iterator each epoch so data is reshuffled
         for batch in loader:
+            if step >= steps:
+                break
             step += 1
 
             uid, iid, feat, rating = [b.to(device) for b in batch]
