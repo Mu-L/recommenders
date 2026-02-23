@@ -18,11 +18,6 @@ from recommenders.utils.constants import (
 
 logger = logging.getLogger(__name__)
 
-# Multiplier from Knuth's 64-bit linear congruential generator (LCG),
-# used to hash (user, item) pairs into crossed-feature buckets.
-# Source: Knuth, "The Art of Computer Programming", Vol. 2, 1997.
-CROSS_HASH_MULTIPLIER = 6364136223846793005
-
 
 class WideDeepModel(nn.Module):
     """Wide & Deep model for recommendation.
@@ -116,11 +111,10 @@ class WideDeepModel(nn.Module):
             layers.append(nn.Linear(in_dim, 1))
             self.dnn = nn.Sequential(*layers)
 
-    @staticmethod
-    def _cross_hash(user_ids, item_ids, bucket_size):
+    def _cross_hash(self, user_ids, item_ids, bucket_size):
         """Deterministic hash of (user, item) pairs into ``[0, bucket_size)``."""
         return (
-            (user_ids.long() * CROSS_HASH_MULTIPLIER + item_ids.long()) % bucket_size
+            (user_ids.long() * self.n_items + item_ids.long()) % bucket_size
         ).abs()
 
     def forward(self, user_ids, item_ids, item_feats=None):
@@ -283,9 +277,9 @@ def build_model(
     cfg = wide_columns if has_wide else deep_columns
     n_users = cfg["n_users"]
     n_items = cfg["n_items"]
-    crossed_feat_dim = wide_columns.get("crossed_feat_dim", 1000)
-    user_dim = deep_columns.get("user_dim", 8)
-    item_dim = deep_columns.get("item_dim", 8)
+    crossed_feat_dim = wide_columns.get("crossed_feat_dim", 0)
+    user_dim = deep_columns.get("user_dim", 0)
+    item_dim = deep_columns.get("item_dim", 0)
     item_feat_shape = deep_columns.get("item_feat_shape", None)
 
     model = WideDeepModel(
@@ -498,8 +492,6 @@ def train_model(
         # Create a fresh iterator each epoch so data is reshuffled
         for batch in loader:
             step += 1
-            if step > steps:
-                break
 
             uid, iid, feat, rating = [b.to(device) for b in batch]
             item_feats = feat if feat.numel() > 0 else None

@@ -59,7 +59,7 @@ def test_wide_model(pd_df):
         users, items, model_type="wide", crossed_feat_dim=10
     )
     # Wide config should be populated, deep should be empty
-    assert wide_columns
+    assert len(wide_columns) == 7
     assert not deep_columns
     assert wide_columns["crossed_feat_dim"] == 10
 
