@@ -219,8 +219,6 @@ class WideDeepModel(nn.Module):
             eval_every_n_epochs (int or None): Evaluation frequency in epochs.
             log_every_n_epochs (int): How often to log training loss.
 
-        Returns:
-            WideDeepModel: The trained model (self).
         """
         if seed is not None:
             torch.manual_seed(seed)
@@ -324,8 +322,6 @@ class WideDeepModel(nn.Module):
                 self.eval()
                 eval_fn(self, epoch)
                 self.train()
-
-        return self
 
     def predict(self, df, batch_size=256):
         """Generate predictions for the given dataframe.
