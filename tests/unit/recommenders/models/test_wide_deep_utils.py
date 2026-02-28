@@ -2,6 +2,8 @@
 # Licensed under the MIT License.
 
 
+import os
+
 import pytest
 import pandas as pd
 import numpy as np
@@ -307,3 +309,21 @@ def test_seed_reproducibility(pd_df):
     preds1 = m1.predict(data)
     preds2 = m2.predict(data)
     assert np.allclose(preds1, preds2)
+
+
+@pytest.mark.gpu
+def test_save_load(pd_df, tmp):
+    data, users, items = pd_df
+
+    model = WideDeepModel(users=users, items=items, model_type="wide_deep", seed=42)
+    model.fit(data, n_epochs=3, batch_size=2, seed=99)
+    preds_before = model.predict(data)
+
+    path = os.path.join(tmp, "wide_deep.pt")
+    torch.save(model.state_dict(), path)
+
+    loaded = WideDeepModel(users=users, items=items, model_type="wide_deep")
+    loaded.load_state_dict(torch.load(path))
+    preds_after = loaded.predict(data)
+
+    assert np.allclose(preds_before, preds_after)
