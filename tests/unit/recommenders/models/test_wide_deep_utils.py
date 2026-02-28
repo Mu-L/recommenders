@@ -3,10 +3,9 @@
 
 
 import os
-
 import pytest
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from recommenders.utils.constants import (
     DEFAULT_USER_COL,
