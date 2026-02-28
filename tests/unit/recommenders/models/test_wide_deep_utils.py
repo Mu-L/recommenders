@@ -46,24 +46,57 @@ def pd_df():
 
 
 @pytest.mark.gpu
+def test_init(pd_df):
+    _, users, items = pd_df
+
+    # Wide-only model
+    wide = WideDeepModel(users=users, items=items, model_type="wide", crossed_feat_dim=10)
+    assert isinstance(wide, WideDeepModel)
+    assert wide.model_type == "wide"
+    assert len(wide.users) == 2
+    assert len(wide.items) == 5
+    assert hasattr(wide, "wide_user")
+    assert hasattr(wide, "wide_item")
+    assert hasattr(wide, "wide_cross")
+    assert not hasattr(wide, "dnn")
+
+    # Deep-only model
+    deep = WideDeepModel(users=users, items=items, model_type="deep")
+    assert deep.model_type == "deep"
+    assert hasattr(deep, "deep_user")
+    assert hasattr(deep, "deep_item")
+    assert hasattr(deep, "dnn")
+    assert not hasattr(deep, "wide_user")
+
+    # Wide & Deep model
+    wd = WideDeepModel(users=users, items=items, model_type="wide_deep")
+    assert wd.model_type == "wide_deep"
+    assert hasattr(wd, "wide_user")
+    assert hasattr(wd, "deep_user")
+    assert hasattr(wd, "dnn")
+
+    # With item features
+    wd_feat = WideDeepModel(
+        users=users,
+        items=items,
+        model_type="wide_deep",
+        item_feat_col=ITEM_FEAT_COL,
+        item_feat_shape=3,
+    )
+    assert wd_feat.item_feat_shape == 3
+
+    # Invalid model_type
+    with pytest.raises(ValueError):
+        WideDeepModel(users=users, items=items, model_type="invalid")
+
+
+@pytest.mark.gpu
 def test_wide_model(pd_df):
     data, users, items = pd_df
 
     model = WideDeepModel(
-        users=users,
-        items=items,
-        model_type="wide",
-        crossed_feat_dim=10,
+        users=users, items=items, model_type="wide", crossed_feat_dim=10
     )
-    assert isinstance(model, WideDeepModel)
-    assert model.model_type == "wide"
-    assert len(model.users) == 2
-    assert len(model.items) == 5
-    assert hasattr(model, "wide_user")
-    assert hasattr(model, "wide_item")
-    assert hasattr(model, "wide_cross")
-    assert not hasattr(model, "dnn")
-
     model.fit(data, n_epochs=1, batch_size=2)
 
     preds = model.predict(data)
@@ -74,18 +107,7 @@ def test_wide_model(pd_df):
 def test_deep_model(pd_df):
     data, users, items = pd_df
 
-    model = WideDeepModel(
-        users=users,
-        items=items,
-        model_type="deep",
-    )
-    assert isinstance(model, WideDeepModel)
-    assert model.model_type == "deep"
-    assert hasattr(model, "deep_user")
-    assert hasattr(model, "deep_item")
-    assert hasattr(model, "dnn")
-    assert not hasattr(model, "wide_user")
-
+    model = WideDeepModel(users=users, items=items, model_type="deep")
     model.fit(data, n_epochs=1, batch_size=2)
 
     preds = model.predict(data)
@@ -96,17 +118,7 @@ def test_deep_model(pd_df):
 def test_wide_deep_model(pd_df):
     data, users, items = pd_df
 
-    model = WideDeepModel(
-        users=users,
-        items=items,
-        model_type="wide_deep",
-    )
-    assert isinstance(model, WideDeepModel)
-    assert model.model_type == "wide_deep"
-    assert hasattr(model, "wide_user")
-    assert hasattr(model, "deep_user")
-    assert hasattr(model, "dnn")
-
+    model = WideDeepModel(users=users, items=items, model_type="wide_deep")
     model.fit(data, n_epochs=1, batch_size=2)
 
     preds = model.predict(data)
@@ -124,8 +136,6 @@ def test_wide_deep_model_with_item_features(pd_df):
         item_feat_col=ITEM_FEAT_COL,
         item_feat_shape=3,
     )
-    assert model.item_feat_shape == 3
-
     model.fit(data, n_epochs=1, batch_size=2)
 
     preds = model.predict(data)
