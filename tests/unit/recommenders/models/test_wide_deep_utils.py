@@ -327,3 +327,44 @@ def test_save_load(pd_df, tmp):
     preds_after = loaded.predict(data)
 
     assert np.allclose(preds_before, preds_after)
+
+
+@pytest.mark.gpu
+def test_cross_hash(pd_df):
+    _, users, items = pd_df
+
+    model = WideDeepModel(users=users, items=items, model_type="wide", crossed_feat_dim=100)
+    uids = torch.tensor([0, 1, 0, 1])
+    iids = torch.tensor([0, 1, 2, 0])
+
+    hashes = model._cross_hash(uids, iids, 100)
+
+    # All values within [0, bucket_size)
+    assert (hashes >= 0).all()
+    assert (hashes < 100).all()
+    # Deterministic: same inputs produce same outputs
+    assert torch.equal(hashes, model._cross_hash(uids, iids, 100))
+    # Different (user, item) pairs produce different hashes
+    assert len(hashes.unique()) == len(hashes)
+
+
+@pytest.mark.gpu
+def test_unknown_ids(pd_df):
+    data, users, items = pd_df
+
+    model = WideDeepModel(users=users, items=items, model_type="wide_deep")
+    model.fit(data, n_epochs=1, batch_size=2)
+
+    # Unknown user ID
+    bad_user_df = pd.DataFrame(
+        {DEFAULT_USER_COL: [999], DEFAULT_ITEM_COL: [1], DEFAULT_RATING_COL: [3.0]}
+    )
+    with pytest.raises(ValueError, match="Unknown user IDs"):
+        model.predict(bad_user_df)
+
+    # Unknown item ID
+    bad_item_df = pd.DataFrame(
+        {DEFAULT_USER_COL: [1], DEFAULT_ITEM_COL: [999], DEFAULT_RATING_COL: [3.0]}
+    )
+    with pytest.raises(ValueError, match="Unknown item IDs"):
+        model.predict(bad_item_df)

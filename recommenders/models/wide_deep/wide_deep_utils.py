@@ -459,6 +459,19 @@ class _WideDeepDataset(Dataset):
         self.user2idx = {u: i for i, u in enumerate(users)}
         self.item2idx = {it: i for i, it in enumerate(items)}
 
+        unknown_users = set(df[user_col]) - set(self.user2idx)
+        if unknown_users:
+            raise ValueError(
+                f"Unknown user IDs: {sorted(unknown_users)[:5]}. "
+                "All user IDs must be in the vocabulary passed to WideDeepModel."
+            )
+        unknown_items = set(df[item_col]) - set(self.item2idx)
+        if unknown_items:
+            raise ValueError(
+                f"Unknown item IDs: {sorted(unknown_items)[:5]}. "
+                "All item IDs must be in the vocabulary passed to WideDeepModel."
+            )
+
         self.user_ids = torch.tensor(
             [self.user2idx[u] for u in df[user_col]], dtype=torch.long
         )
