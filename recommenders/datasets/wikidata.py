@@ -16,11 +16,20 @@ API_URL_WIKIDATA = "https://query.wikidata.org/sparql"
 SESSION = None
 
 
+def _should_retry(exception):
+    """Return True only for transient (non-4xx) errors that are worth retrying."""
+    if isinstance(exception, requests.exceptions.HTTPError):
+        status = exception.response.status_code
+        if 400 <= status < 500:
+            return False
+    return True
+
+
 def log_retries(func):
     """Decorator that logs retry attempts. Must be applied AFTER the @retry decorator.
-    
+
     Example usage:
-        @retry(wait_random_min=1000, wait_random_max=5000, stop_max_attempt_number=3)
+        @retry(wait_random_min=1000, wait_random_max=5000, stop_max_attempt_number=3, retry_on_exception=_should_retry)
         @log_retries
         def my_function():
             # Function implementation
@@ -49,13 +58,18 @@ def get_session(session=None):
         global SESSION
         if SESSION is None:
             SESSION = requests.Session()
+            SESSION.headers.update(
+                {
+                    "User-Agent": "Recommenders (https://github.com/recommenders-team/recommenders)"
+                }
+            )
         session = SESSION
 
     return session
 
 
 @lru_cache(maxsize=1024)
-@retry(wait_random_min=1000, wait_random_max=5000, stop_max_attempt_number=3)
+@retry(wait_random_min=1000, wait_random_max=5000, stop_max_attempt_number=3, retry_on_exception=_should_retry)
 @log_retries
 def find_wikidata_id(name, limit=1, session=None):
     """Find the entity ID in wikidata from a title string.
@@ -117,7 +131,7 @@ def find_wikidata_id(name, limit=1, session=None):
 
 
 @lru_cache(maxsize=1024)
-@retry(wait_random_min=1000, wait_random_max=5000, stop_max_attempt_number=3)
+@retry(wait_random_min=1000, wait_random_max=5000, stop_max_attempt_number=3, retry_on_exception=_should_retry)
 @log_retries
 def query_entity_links(entity_id, session=None):
     """Query all linked pages from a wikidata entityID
@@ -201,7 +215,7 @@ def read_linked_entities(data):
 
 
 @lru_cache(maxsize=1024)
-@retry(wait_random_min=1000, wait_random_max=5000, stop_max_attempt_number=3)
+@retry(wait_random_min=1000, wait_random_max=5000, stop_max_attempt_number=3, retry_on_exception=_should_retry)
 @log_retries
 def query_entity_description(entity_id, session=None):
     """Query entity wikidata description from entityID
