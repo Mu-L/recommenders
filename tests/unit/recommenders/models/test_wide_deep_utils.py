@@ -15,6 +15,7 @@ from recommenders.utils.constants import (
 
 try:
     import torch
+    import torch.nn as nn
     from recommenders.models.wide_deep.wide_deep_utils import (
         WideDeepModel,
         _build_optimizer,
@@ -93,6 +94,41 @@ def test_init(pd_df):
         item_feat_shape=3,
     )
     assert wd_feat.item_feat_shape == 3
+
+    # Custom column names
+    custom = WideDeepModel(
+        users=users, items=items, model_type="wide_deep",
+        user_col="uid", item_col="iid",
+    )
+    assert custom.user_col == "uid"
+    assert custom.item_col == "iid"
+
+    # Custom embedding dims and DNN architecture
+    custom_dnn = WideDeepModel(
+        users=users, items=items, model_type="deep",
+        user_dim=16, item_dim=4, dnn_hidden_units=(64,),
+    )
+    assert custom_dnn.deep_user.embedding_dim == 16
+    assert custom_dnn.deep_item.embedding_dim == 4
+    # Single hidden layer: Linear(20,64) -> ReLU -> BN -> Linear(64,1)
+    layer_types = [type(m) for m in custom_dnn.dnn]
+    assert layer_types == [nn.Linear, nn.ReLU, nn.BatchNorm1d, nn.Linear]
+    assert custom_dnn.dnn[0].in_features == 20  # 16 + 4
+    assert custom_dnn.dnn[0].out_features == 64
+
+    # Dropout enabled
+    with_dropout = WideDeepModel(
+        users=users, items=items, model_type="deep", dnn_dropout=0.5,
+    )
+    layer_types = [type(m) for m in with_dropout.dnn]
+    assert nn.Dropout in layer_types
+
+    # Batch norm disabled
+    no_bn = WideDeepModel(
+        users=users, items=items, model_type="deep", dnn_batch_norm=False,
+    )
+    layer_types = [type(m) for m in no_bn.dnn]
+    assert nn.BatchNorm1d not in layer_types
 
     # Invalid model_type
     with pytest.raises(ValueError):
@@ -253,3 +289,21 @@ def test_invalid_optimizer():
     dummy_params = [torch.nn.Parameter(torch.zeros(1))]
     with pytest.raises(ValueError):
         _build_optimizer("bad_name", dummy_params)
+
+
+@pytest.mark.gpu
+def test_seed_reproducibility(pd_df):
+    data, users, items = pd_df
+
+    # Constructor seed produces identical weights
+    m1 = WideDeepModel(users=users, items=items, model_type="wide_deep", seed=42)
+    m2 = WideDeepModel(users=users, items=items, model_type="wide_deep", seed=42)
+    for p1, p2 in zip(m1.parameters(), m2.parameters()):
+        assert torch.equal(p1, p2)
+
+    # fit() seed produces identical predictions
+    m1.fit(data, n_epochs=3, batch_size=2, seed=99)
+    m2.fit(data, n_epochs=3, batch_size=2, seed=99)
+    preds1 = m1.predict(data)
+    preds2 = m2.predict(data)
+    assert np.allclose(preds1, preds2)
