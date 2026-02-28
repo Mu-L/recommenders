@@ -627,13 +627,15 @@ def test_sasrec_quickstart_functional(
     notebooks,
     output_notebook,
     kernel_name,
-    data_dir,
+    tmp_path,
     num_epochs,
     batch_size,
     model_name,
     expected_values,
 ):
     notebook_path = notebooks["sasrec_quickstart"]
+    data_dir = str(tmp_path / "data")
+    os.makedirs(data_dir, exist_ok=True)
     params = {
         "data_dir": data_dir,
         "num_epochs": num_epochs,
