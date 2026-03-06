@@ -238,6 +238,9 @@ def notebooks():
         "lightgbm_quickstart": os.path.join(
             folder_notebooks, "00_quick_start", "lightgbm_tinycriteo.ipynb"
         ),
+        "lightgbm_ranker": os.path.join(
+            folder_notebooks, "00_quick_start", "lightgbm_ranker.ipynb"
+        ),
         "wide_deep": os.path.join(
             folder_notebooks, "00_quick_start", "wide_deep_movielens.ipynb"
         ),
