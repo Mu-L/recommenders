@@ -256,7 +256,16 @@ class LightGBMRanker:
         self.early_stopping_rounds = early_stopping_rounds
         self.model = None
 
-    def fit(self, train_x, train_y, valid_x=None, valid_y=None, categorical_feature=None):
+    def fit(
+        self,
+        train_x,
+        train_y,
+        valid_x=None,
+        valid_y=None,
+        categorical_feature=None,
+        train_group=None,
+        valid_group=None,
+    ):
         """Train the ranker.
 
         Args:
@@ -266,6 +275,12 @@ class LightGBMRanker:
             valid_y (numpy.ndarray, optional): Validation labels.
             categorical_feature (list, optional): Column names or indices of
                 categorical features passed to LightGBM. Defaults to ``"auto"``.
+            train_group (numpy.ndarray or list, optional): Query group sizes for the
+                training set (required for ``lambdarank`` objective). Each element
+                specifies the number of items in that query.
+            valid_group (numpy.ndarray or list, optional): Query group sizes for the
+                validation set. Required when ``valid_x`` is provided and the
+                objective is ``lambdarank``.
 
         Returns:
             LightGBMRanker: self
@@ -274,6 +289,8 @@ class LightGBMRanker:
         lgb_train = lgb.Dataset(
             train_x, train_y.reshape(-1), params=self.params, categorical_feature=cat_feat
         )
+        if train_group is not None:
+            lgb_train.set_group(train_group)
 
         valid_sets = [lgb_train]
         callbacks = []
@@ -284,6 +301,8 @@ class LightGBMRanker:
                 reference=lgb_train,
                 categorical_feature=cat_feat,
             )
+            if valid_group is not None:
+                lgb_valid.set_group(valid_group)
             valid_sets.append(lgb_valid)
             if self.early_stopping_rounds:
                 callbacks.append(lgb.early_stopping(self.early_stopping_rounds))

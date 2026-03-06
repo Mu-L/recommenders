@@ -265,6 +265,22 @@ def test_xlearn_fm_functional(notebooks, output_notebook, kernel_name):
 
 
 @pytest.mark.notebooks
+@pytest.mark.parametrize("size", ["sample"])
+def test_lightgbm_ranker_functional(notebooks, output_notebook, kernel_name, size):
+    notebook_path = notebooks["lightgbm_ranker"]
+    execute_notebook(
+        notebook_path,
+        output_notebook,
+        kernel_name=kernel_name,
+        parameters=dict(SIZE=size),
+    )
+    results = read_notebook(output_notebook)
+
+    assert results["ndcg_at_5"] >= 0.5
+    assert results["ndcg_at_10"] >= 0.5
+
+
+@pytest.mark.notebooks
 @pytest.mark.parametrize(
     "size, algos, expected_values_ndcg",
     [
