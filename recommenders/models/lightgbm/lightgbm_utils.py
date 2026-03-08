@@ -1,14 +1,14 @@
 # Copyright (c) Recommenders contributors.
 # Licensed under the MIT License.
 
-import logging
-import numpy as np
-import category_encoders as ce
-from tqdm import tqdm
 import collections
 import gc
+import logging
 
+import category_encoders as ce
 import lightgbm as lgb
+import numpy as np
+from tqdm import tqdm
 
 
 def unpackbits(x, num_bits):
@@ -287,7 +287,10 @@ class LightGBMRanker:
         """
         cat_feat = categorical_feature or "auto"
         lgb_train = lgb.Dataset(
-            train_x, train_y.reshape(-1), params=self.params, categorical_feature=cat_feat
+            train_x,
+            train_y.reshape(-1),
+            params=self.params,
+            categorical_feature=cat_feat,
         )
         if train_group is not None:
             lgb_train.set_group(train_group)
