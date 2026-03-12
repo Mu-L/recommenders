@@ -274,7 +274,7 @@ def get_author_reference_list(author2paper_list, paper2reference_list, paper2dat
 
 
 def output_author2reference_list(author2reference_list, filename):
-    print("outputing author reference list")
+    print("outputting author reference list")
     with open(filename, "w") as wt:
         for author, ref_list in author2reference_list.items():
             paper_list = [a[0] for a in ref_list]
