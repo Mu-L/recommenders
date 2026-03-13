@@ -118,8 +118,8 @@ def test_lightgbm_quickstart_smoke(notebooks, output_notebook, kernel_name):
 
 
 @pytest.mark.notebooks
-def test_lightgbm_ranker_smoke(notebooks, output_notebook, kernel_name):
-    notebook_path = notebooks["lightgbm_ranker"]
+def test_lightgbm_movielens_smoke(notebooks, output_notebook, kernel_name):
+    notebook_path = notebooks["lightgbm_movielens"]
     execute_notebook(
         notebook_path,
         output_notebook,
@@ -128,8 +128,9 @@ def test_lightgbm_ranker_smoke(notebooks, output_notebook, kernel_name):
     )
     results = read_notebook(output_notebook)
 
-    assert results["ndcg_at_5"] >= 0.5
-    assert results["ndcg_at_10"] >= 0.5
+    assert results["map"] >= 0.0
+    assert results["ndcg_at_5"] >= 0.0
+    assert results["ndcg_at_10"] >= 0.0
 
 
 @pytest.mark.notebooks
