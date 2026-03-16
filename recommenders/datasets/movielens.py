@@ -3,7 +3,6 @@
 
 import os
 import re
-import random
 import shutil
 import warnings
 import pandas as pd
@@ -33,10 +32,7 @@ try:
 except ImportError:
     pass  # so the environment without spark doesn't break
 
-import pandera as pa
-import pandera.extensions as extensions
-from pandera import Field
-from pandera.typing import Series
+import numpy as np
 
 
 class _DataFormat:
@@ -576,40 +572,50 @@ def extract_movielens(size, rating_path, item_path, zip_path):
             shutil.copyfileobj(zf, f)
 
 
-# For more information on data synthesis, see https://pandera.readthedocs.io/en/latest/data_synthesis_strategies.html
-@extensions.register_check_method(statistics=["columns"], supported_types=pd.DataFrame)
-def unique_columns(df, *, columns):
-    return not df[columns].duplicated().any()
-
-
-class MockMovielensSchema(pa.DataFrameModel):
-    """
-    Mock dataset schema to generate fake data for testing purpose.
+class MockMovielensSchema:
+    """Mock dataset schema to generate fake data for testing purpose.
     This schema is configured to mimic the Movielens dataset
 
     http://files.grouplens.org/datasets/movielens/ml-100k/
-
-    Dataset schema and generation is configured using pandera.
-    Please see https://pandera.readthedocs.io/en/latest/schema_models.html
-    for more information.
     """
 
-    # Some notebooks will do a cross join with userID and itemID,
-    # a sparse range for these IDs can slow down the notebook tests
-    userID: Series[int] = Field(
-        in_range={"min_value": 1, "max_value": 50}, alias=DEFAULT_USER_COL
-    )
-    itemID: Series[int] = Field(
-        in_range={"min_value": 1, "max_value": 50}, alias=DEFAULT_ITEM_COL
-    )
-    rating: Series[float] = Field(
-        in_range={"min_value": 1, "max_value": 5}, alias=DEFAULT_RATING_COL
-    )
-    timestamp: Series[int] = Field(
-        in_range={"min_value": 0, "max_value": 1e9}, alias=DEFAULT_TIMESTAMP_COL
-    )
-    title: Series[str] = Field(eq="foo", alias=DEFAULT_TITLE_COL)
-    genre: Series[str] = Field(eq="genreA|0", alias=DEFAULT_GENRE_COL)
+    # All columns in generation order (matches DEFAULT_HEADER + title + genre)
+    _ALL_COLS = [
+        DEFAULT_USER_COL,
+        DEFAULT_ITEM_COL,
+        DEFAULT_RATING_COL,
+        DEFAULT_TIMESTAMP_COL,
+        DEFAULT_TITLE_COL,
+        DEFAULT_GENRE_COL,
+    ]
+
+    @classmethod
+    def example(cls, size: int = 3, seed: int = 100) -> pd.DataFrame:
+        """Generate a fake movielens DataFrame with all columns.
+
+        Args:
+            size (int): number of rows to generate.
+            seed (int): random seed. Defaults to 100.
+
+        Returns:
+            pandas.DataFrame: a mock dataset with all columns.
+        """
+        rng = np.random.RandomState(seed % (2**32))
+        # Generate enough rows to guarantee `size` unique (user, item) pairs
+        pool_size = size * 3
+        df = pd.DataFrame(
+            {
+                DEFAULT_USER_COL: rng.randint(1, 51, size=pool_size),
+                DEFAULT_ITEM_COL: rng.randint(1, 51, size=pool_size),
+                DEFAULT_RATING_COL: rng.uniform(1.0, 5.0, size=pool_size),
+                DEFAULT_TIMESTAMP_COL: rng.randint(0, int(1e9), size=pool_size),
+                DEFAULT_TITLE_COL: "foo",
+                DEFAULT_GENRE_COL: "genreA|0",
+            }
+        )
+        df = df.drop_duplicates(subset=[DEFAULT_USER_COL, DEFAULT_ITEM_COL]).head(size)
+        df = df.reset_index(drop=True)
+        return df
 
     @classmethod
     def get_df(
@@ -632,21 +638,31 @@ class MockMovielensSchema(pa.DataFrameModel):
         Returns:
             pandas.DataFrame: a mock dataset
         """
-        schema = cls.to_schema()
         if keep_first_n_cols is not None:
             if keep_first_n_cols < 1 or keep_first_n_cols > len(DEFAULT_HEADER):
                 raise ValueError(
                     f"Invalid value for 'keep_first_n_cols': {keep_first_n_cols}. Valid range: [1-{len(DEFAULT_HEADER)}]"
                 )
-            schema = schema.remove_columns(DEFAULT_HEADER[keep_first_n_cols:])
-        if not keep_title_col:
-            schema = schema.remove_columns([DEFAULT_TITLE_COL])
-        if not keep_genre_col:
-            schema = schema.remove_columns([DEFAULT_GENRE_COL])
 
-        random.seed(seed)
-        schema.checks = [pa.Check.unique_columns([DEFAULT_USER_COL, DEFAULT_ITEM_COL])]
-        return schema.example(size=size)
+        df = cls.example(size=size, seed=seed)
+
+        if keep_first_n_cols is not None:
+            cols_to_keep = list(DEFAULT_HEADER[:keep_first_n_cols])
+            if keep_title_col and DEFAULT_TITLE_COL not in cols_to_keep:
+                cols_to_keep.append(DEFAULT_TITLE_COL)
+            if keep_genre_col and DEFAULT_GENRE_COL not in cols_to_keep:
+                cols_to_keep.append(DEFAULT_GENRE_COL)
+            df = df[cols_to_keep]
+        else:
+            cols_to_drop = []
+            if not keep_title_col:
+                cols_to_drop.append(DEFAULT_TITLE_COL)
+            if not keep_genre_col:
+                cols_to_drop.append(DEFAULT_GENRE_COL)
+            if cols_to_drop:
+                df = df.drop(columns=cols_to_drop)
+
+        return df
 
     @classmethod
     def get_spark_df(
