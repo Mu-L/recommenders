@@ -601,20 +601,18 @@ class MockMovielensSchema:
             pandas.DataFrame: a mock dataset with all columns.
         """
         rng = np.random.RandomState(seed % (2**32))
-        # Generate enough rows to guarantee `size` unique (user, item) pairs
-        pool_size = size * 3
+        # Sample unique (user, item) pairs from the 50x50 grid
+        indices = rng.choice(50 * 50, size=size, replace=False)
         df = pd.DataFrame(
             {
-                DEFAULT_USER_COL: rng.randint(1, 51, size=pool_size),
-                DEFAULT_ITEM_COL: rng.randint(1, 51, size=pool_size),
-                DEFAULT_RATING_COL: rng.uniform(1.0, 5.0, size=pool_size),
-                DEFAULT_TIMESTAMP_COL: rng.randint(0, int(1e9), size=pool_size),
+                DEFAULT_USER_COL: (indices // 50) + 1,
+                DEFAULT_ITEM_COL: (indices % 50) + 1,
+                DEFAULT_RATING_COL: rng.uniform(1.0, 5.0, size=size),
+                DEFAULT_TIMESTAMP_COL: rng.randint(0, int(1e9), size=size),
                 DEFAULT_TITLE_COL: "foo",
                 DEFAULT_GENRE_COL: "genreA|0",
             }
         )
-        df = df.drop_duplicates(subset=[DEFAULT_USER_COL, DEFAULT_ITEM_COL]).head(size)
-        df = df.reset_index(drop=True)
         return df
 
     @classmethod
