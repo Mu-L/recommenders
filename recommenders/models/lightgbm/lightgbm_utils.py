@@ -1,26 +1,20 @@
 # Copyright (c) Recommenders contributors.
 # Licensed under the MIT License.
 
+import logging
+import numpy as np
+import category_encoders as ce
+from tqdm import tqdm
 import collections
 import gc
-import logging
-from collections import defaultdict
-
-import category_encoders as ce
-import numpy as np
-import pandas as pd
-from tqdm import tqdm
 
 
-def unpackbits(x: np.ndarray, num_bits: int) -> np.ndarray:
+def unpackbits(x, num_bits):
     """Convert a decimal value numpy.ndarray into multi-binary value numpy.ndarray ([1,2]->[[0,1],[1,0]])
 
     Args:
         x (numpy.ndarray): Decimal array.
         num_bits (int): The max length of the converted binary value.
-
-    Returns:
-        numpy.ndarray: Binary encoded array.
     """
     xshape = list(x.shape)
     x = x.reshape([-1, 1])
@@ -28,25 +22,18 @@ def unpackbits(x: np.ndarray, num_bits: int) -> np.ndarray:
     return (x & to_and).astype(bool).astype(int).reshape(xshape + [num_bits])
 
 
-class NumEncoder:
+class NumEncoder(object):
     """Encode all the categorical features into numerical ones by sequential label encoding, sequential count encoding,
     and binary encoding. Additionally, it also filters the low-frequency categories and fills the missing values.
     """
 
-    def __init__(
-        self,
-        cate_cols: list[str],
-        nume_cols: list[str],
-        label_col: str,
-        threshold: int = 10,
-        thresrate: float = 0.99,
-    ) -> None:
+    def __init__(self, cate_cols, nume_cols, label_col, threshold=10, thresrate=0.99):
         """Constructor.
 
         Args:
-            cate_cols (list[str]): The columns of categorical features.
-            nume_cols (list[str]): The columns of numerical features.
-            label_col (str): The column of Label.
+            cate_cols (list): The columns of categorical features.
+            nume_cols (list): The columns of numerical features.
+            label_col (object): The column of Label.
             threshold (int): The categories whose frequency is lower than the threshold will be filtered (be treated
                 as "<LESS>").
             thresrate (float): The (1.0 - thersrate, default 1%) lowest-frequency categories will also be filtered.
@@ -54,31 +41,31 @@ class NumEncoder:
         logging.basicConfig(level=logging.INFO, format="%(asctime)s [INFO] %(message)s")
         self.label_name = label_col
         self.cate_cols = cate_cols
-        self.dtype_dict: dict[str, str] = {}
+        self.dtype_dict = {}
         for item in cate_cols:
             self.dtype_dict[item] = "str"
         for item in nume_cols:
             self.dtype_dict[item] = "float"
         self.nume_cols = nume_cols
-        self.tgt_nume_cols: list[str] = []
+        self.tgt_nume_cols = []
         self.encoder = ce.ordinal.OrdinalEncoder(cols=cate_cols)
         self.threshold = threshold
         self.thresrate = thresrate
 
-        self.save_cate_avgs: dict[str, defaultdict] = {}
-        self.save_value_filter: dict[str, list] = {}
-        self.save_num_embs: dict[str, dict[str, float]] = {}
-        self.Max_len: dict[str, int] = {}
-        self.samples: int = 0
+        self.save_cate_avgs = {}
+        self.save_value_filter = {}
+        self.save_num_embs = {}
+        self.Max_len = {}
+        self.samples = 0
 
-    def fit_transform(self, df: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
+    def fit_transform(self, df):
         """Input a training set (pandas.DataFrame) and return the converted 2 numpy.ndarray (x,y).
 
         Args:
             df (pandas.DataFrame): Input dataframe
 
         Returns:
-            tuple[numpy.ndarray, numpy.ndarray]: New features and labels.
+            numpy.ndarray, numpy.ndarray: New features and labels.
         """
         df = df.astype(dtype=self.dtype_dict)
         self.samples = df.shape[0]
@@ -110,7 +97,7 @@ class NumEncoder:
         for item in tqdm(self.cate_cols):
             feats = df[item].values
             labels = df[self.label_name].values
-            feat_encoding: dict[str, list[float]] = {"mean": [], "count": []}
+            feat_encoding = {"mean": [], "count": []}
             self.save_cate_avgs[item] = collections.defaultdict(lambda: [0, 0])
             for idx in range(self.samples):
                 cur_feat = feats[idx]
@@ -133,7 +120,7 @@ class NumEncoder:
             self.tgt_nume_cols.append(item + "_t_count")
 
         logging.info("Start manual binary encoding")
-        rows: np.ndarray | None = None
+        rows = None
         for item in tqdm(self.nume_cols + self.tgt_nume_cols):
             feats = df[item].values
             if rows is None:
@@ -158,14 +145,15 @@ class NumEncoder:
         trn_x = np.array(rows)
         return trn_x, trn_y
 
-    def transform(self, df: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
+    # for test dataset
+    def transform(self, df):
         """Input a testing / validation set (pandas.DataFrame) and return the converted 2 numpy.ndarray (x,y).
 
         Args:
             df (pandas.DataFrame): Input dataframe
 
         Returns:
-            tuple[numpy.ndarray, numpy.ndarray]: New features and labels.
+            numpy.ndarray, numpy.ndarray: New features and labels.
         """
         df = df.astype(dtype=self.dtype_dict)
         samples = df.shape[0]
@@ -196,7 +184,7 @@ class NumEncoder:
             )
 
         logging.info("Start manual binary encoding")
-        rows: np.ndarray | None = None
+        rows = None
         for item in tqdm(self.nume_cols + self.tgt_nume_cols):
             feats = df[item].values
             if rows is None:
