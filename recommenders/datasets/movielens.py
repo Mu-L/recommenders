@@ -609,8 +609,13 @@ class MockMovielensSchema:
                 DEFAULT_ITEM_COL: (indices % 50) + 1,
                 DEFAULT_RATING_COL: rng.randint(1, 6, size=size),  # [1, 5] inclusive
                 DEFAULT_TIMESTAMP_COL: rng.randint(0, int(1e9), size=size),
-                DEFAULT_TITLE_COL: "foo",
-                DEFAULT_GENRE_COL: "genreA|0",
+                DEFAULT_TITLE_COL: rng.choice(
+                    [f"title_{i}" for i in range(10)], size=size
+                ),
+                DEFAULT_GENRE_COL: rng.choice(
+                    ["Action|0", "Comedy|1", "Drama|2", "Thriller|3", "Romance|4"],
+                    size=size,
+                ),
             }
         )
         return df
