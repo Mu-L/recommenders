@@ -39,7 +39,7 @@ from recommenders.datasets.movielens import (
 
 @pytest.mark.parametrize("size", [10, 100])
 def test_mock_movielens_schema__has_default_col_names(size):
-    df = MockMovielensSchema.example(size=size)
+    df = MockMovielensSchema.generate(size=size)
     for col_name in DEFAULT_HEADER:
         assert col_name in df.columns
 

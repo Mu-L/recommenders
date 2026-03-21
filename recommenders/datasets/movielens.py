@@ -590,8 +590,14 @@ class MockMovielensSchema:
     ]
 
     @classmethod
-    def example(cls, size: int = 3, seed: int = 42) -> pd.DataFrame:
+    def generate(cls, size: int = 3, seed: int = 42):
         """Generate a fake movielens DataFrame with all columns.
+
+        Example:
+
+            >>> df = MockMovielensSchema.generate(size=5, seed=42)
+            >>> df.columns.tolist()
+            ['userID', 'itemID', 'rating', 'timestamp', 'title', 'genre']
 
         Args:
             size (int): number of rows to generate.
@@ -600,13 +606,13 @@ class MockMovielensSchema:
         Returns:
             pandas.DataFrame: a mock dataset with all columns.
         """
-        rng = np.random.RandomState(seed % (2**32))
-        # Sample unique (user, item) pairs from the 50x50 grid
-        indices = rng.choice(50 * 50, size=size, replace=False)
+        rng = np.random.RandomState(seed)
+        n = int(np.ceil(np.sqrt(size * 2)))  # ~2x headroom for unique sampling
+        indices = rng.choice(n * n, size=size, replace=False)
         df = pd.DataFrame(
             {
-                DEFAULT_USER_COL: (indices // 50) + 1,
-                DEFAULT_ITEM_COL: (indices % 50) + 1,
+                DEFAULT_USER_COL: (indices // n) + 1,
+                DEFAULT_ITEM_COL: (indices % n) + 1,
                 DEFAULT_RATING_COL: rng.randint(1, 6, size=size),  # [1, 5] inclusive
                 DEFAULT_TIMESTAMP_COL: rng.randint(0, int(1e9), size=size),
                 DEFAULT_TITLE_COL: rng.choice(
@@ -647,7 +653,7 @@ class MockMovielensSchema:
                     f"Invalid value for 'keep_first_n_cols': {keep_first_n_cols}. Valid range: [1-{len(DEFAULT_HEADER)}]"
                 )
 
-        df = cls.example(size=size, seed=seed)
+        df = cls.generate(size=size, seed=seed)
 
         if keep_first_n_cols is not None:
             cols_to_keep = list(DEFAULT_HEADER[:keep_first_n_cols])
