@@ -593,18 +593,20 @@ class MockMovielensSchema:
     def generate(cls, size: int = 3, seed: int = 42):
         """Generate a fake movielens DataFrame with all columns.
 
-        Example:
-
-            >>> df = MockMovielensSchema.generate(size=5, seed=42)
-            >>> df.columns.tolist()
-            ['userID', 'itemID', 'rating', 'timestamp', 'title', 'genre']
-
         Args:
             size (int): number of rows to generate.
             seed (int): random seed. Defaults to 42.
 
         Returns:
             pandas.DataFrame: a mock dataset with all columns.
+
+        Examples:
+            >>> df = MockMovielensSchema.generate(size=3, seed=42)
+            >>> df
+               userID  itemID  rating  timestamp    title       genre
+            0       3       2       3  498972759  title_7   Romance|4
+            1       1       2       3  359525748  title_7    Comedy|1
+            2       2       3       3  434285667  title_2  Thriller|3
         """
         rng = np.random.RandomState(seed)
         n = int(np.ceil(np.sqrt(size * 2)))  # ~2x headroom for unique sampling
