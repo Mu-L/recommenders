@@ -604,19 +604,19 @@ class MockMovielensSchema:
             >>> df = MockMovielensSchema.generate(size=3, seed=42)
             >>> df
                userID  itemID  rating  timestamp    title       genre
-            0       3       2       3  498972759  title_7   Romance|4
-            1       1       2       3  359525748  title_7    Comedy|1
-            2       2       3       3  434285667  title_2  Thriller|3
+            0       2       3       5  201469535  title_9  Thriller|3
+            1       1       1       1   94177347  title_7  Thriller|3
+            2       3       1       4  526478978  title_7     Drama|2
         """
-        rng = np.random.RandomState(seed)
+        rng = np.random.default_rng(seed)
         n = int(np.ceil(np.sqrt(size * 2)))  # ~2x headroom for unique sampling
         indices = rng.choice(n * n, size=size, replace=False)
         df = pd.DataFrame(
             {
                 DEFAULT_USER_COL: (indices // n) + 1,
                 DEFAULT_ITEM_COL: (indices % n) + 1,
-                DEFAULT_RATING_COL: rng.randint(1, 6, size=size),  # [1, 5] inclusive
-                DEFAULT_TIMESTAMP_COL: rng.randint(0, int(1e9), size=size),
+                DEFAULT_RATING_COL: rng.integers(1, 6, size=size),  # [1, 5] inclusive
+                DEFAULT_TIMESTAMP_COL: rng.integers(0, int(1e9), size=size),
                 DEFAULT_TITLE_COL: rng.choice(
                     [f"title_{i}" for i in range(10)], size=size
                 ),
