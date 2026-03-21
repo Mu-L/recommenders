@@ -590,12 +590,12 @@ class MockMovielensSchema:
     ]
 
     @classmethod
-    def example(cls, size: int = 3, seed: int = 100) -> pd.DataFrame:
+    def example(cls, size: int = 3, seed: int = 42) -> pd.DataFrame:
         """Generate a fake movielens DataFrame with all columns.
 
         Args:
             size (int): number of rows to generate.
-            seed (int): random seed. Defaults to 100.
+            seed (int): random seed. Defaults to 42.
 
         Returns:
             pandas.DataFrame: a mock dataset with all columns.
@@ -607,7 +607,7 @@ class MockMovielensSchema:
             {
                 DEFAULT_USER_COL: (indices // 50) + 1,
                 DEFAULT_ITEM_COL: (indices % 50) + 1,
-                DEFAULT_RATING_COL: rng.uniform(1.0, 5.0, size=size),
+                DEFAULT_RATING_COL: rng.randint(1, 6, size=size),  # [1, 5] inclusive
                 DEFAULT_TIMESTAMP_COL: rng.randint(0, int(1e9), size=size),
                 DEFAULT_TITLE_COL: "foo",
                 DEFAULT_GENRE_COL: "genreA|0",
