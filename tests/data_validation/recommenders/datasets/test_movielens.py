@@ -62,7 +62,7 @@ def test_mock_movielens_schema__get_df_invalid_param__return_failure(keep_first_
 @pytest.mark.parametrize("keep_genre_col", [True, False])
 @pytest.mark.parametrize("keep_title_col", [True, False])
 @pytest.mark.parametrize("keep_first_n_cols", [None, 2])
-@pytest.mark.parametrize("seed", [-1])  # seed for pseudo-random # generation
+@pytest.mark.parametrize("seed", [42]) 
 @pytest.mark.parametrize("size", [0, 3, 10])
 def test_mock_movielens_schema__get_df__return_success(
     size, seed, keep_first_n_cols, keep_title_col, keep_genre_col
