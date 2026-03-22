@@ -61,8 +61,7 @@ After an Databricks cluster is provisioned:
 # 3. In the popup window, select "PyPI" as the library source. Enter "recommenders[examples]" as the package name. Click "Install" to install the package.
 # 4. Now, repeat the step 3 for below packages:
 #   a. numpy<2.0.0
-#   b. pandera<=0.18.3
-#   c. scipy<=1.13.1
+#   b. scipy<=1.13.1
 ```
 
 ### Prepare Azure Databricks for Operationalization
