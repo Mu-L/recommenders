@@ -84,7 +84,7 @@ def test_lightgbm_movielens(notebooks, output_notebook, kernel_name):
         output_notebook,
         kernel_name=kernel_name,
         parameters=dict(
-            MOVIELENS_DATA_SIZE="100k",
+            MOVIELENS_DATA_SIZE="mock100",
             NUM_BOOST_ROUND=10,
             EARLY_STOPPING_ROUNDS=5,
             N_NEG_TRAIN=10,
