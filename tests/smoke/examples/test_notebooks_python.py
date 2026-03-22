@@ -124,13 +124,12 @@ def test_lightgbm_movielens_smoke(notebooks, output_notebook, kernel_name):
         notebook_path,
         output_notebook,
         kernel_name=kernel_name,
-        parameters=dict(SIZE="sample"),
+        parameters=dict(MOVIELENS_DATA_SIZE="100k"),
     )
     results = read_notebook(output_notebook)
 
-    assert results["map"] >= 0.0
-    assert results["ndcg_at_5"] >= 0.0
-    assert results["ndcg_at_10"] >= 0.0
+    assert results["map_at_10"] == pytest.approx(0.1408, rel=TOL, abs=ABS_TOL)
+    assert results["ndcg_at_10"] == pytest.approx(0.2442, rel=TOL, abs=ABS_TOL)
 
 
 @pytest.mark.notebooks

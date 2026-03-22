@@ -5,7 +5,6 @@ import pytest
 
 from recommenders.utils.notebook_utils import execute_notebook, read_notebook
 
-
 TOL = 0.05
 ABS_TOL = 0.05
 
@@ -238,7 +237,9 @@ def test_lightfm_functional(
     "expected_values",
     [({"rmse": 0.4969, "mae": 0.4761})],
 )
-@pytest.mark.skip(reason="geoimc doesn't work with any officially released pymanopt package")
+@pytest.mark.skip(
+    reason="geoimc doesn't work with any officially released pymanopt package"
+)
 def test_geoimc_functional(notebooks, output_notebook, kernel_name, expected_values):
     notebook_path = notebooks["geoimc_quickstart"]
     execute_notebook(notebook_path, output_notebook, kernel_name=kernel_name)
@@ -265,20 +266,18 @@ def test_xlearn_fm_functional(notebooks, output_notebook, kernel_name):
 
 
 @pytest.mark.notebooks
-@pytest.mark.parametrize("size", ["sample"])
-def test_lightgbm_movielens_functional(notebooks, output_notebook, kernel_name, size):
+def test_lightgbm_movielens_functional(notebooks, output_notebook, kernel_name):
     notebook_path = notebooks["lightgbm_movielens"]
     execute_notebook(
         notebook_path,
         output_notebook,
         kernel_name=kernel_name,
-        parameters=dict(SIZE=size),
+        parameters=dict(MOVIELENS_DATA_SIZE="1m"),
     )
     results = read_notebook(output_notebook)
 
-    assert results["map"] >= 0.0
-    assert results["ndcg_at_5"] >= 0.0
-    assert results["ndcg_at_10"] >= 0.0
+    assert results["map_at_10"] == pytest.approx(0.1762, rel=TOL, abs=ABS_TOL)
+    assert results["ndcg_at_10"] == pytest.approx(0.3184, rel=TOL, abs=ABS_TOL)
 
 
 @pytest.mark.notebooks
