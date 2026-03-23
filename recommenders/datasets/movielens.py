@@ -275,28 +275,8 @@ def load_item_df(
         pandas.DataFrame: Movie information data, such as title, genres, and release year.
     """
     size = size.lower()
-    if size not in DATA_FORMAT and size not in MOCK_DATA_FORMAT:
+    if size not in DATA_FORMAT:
         raise ValueError(f"Size: {size}. " + ERROR_MOVIE_LENS_SIZE)
-
-    if size in MOCK_DATA_FORMAT:
-        mock_df = MockMovielensSchema.get_df(
-            keep_title_col=(title_col is not None),
-            keep_genre_col=(genres_col is not None),
-            **MOCK_DATA_FORMAT[size],
-        )
-        item_df = mock_df.drop_duplicates(subset=[DEFAULT_ITEM_COL]).copy()
-        item_df = item_df.rename(columns={DEFAULT_ITEM_COL: movie_col})
-        cols = [movie_col]
-        if title_col is not None:
-            item_df = item_df.rename(columns={DEFAULT_TITLE_COL: title_col})
-            cols.append(title_col)
-        if genres_col is not None:
-            item_df = item_df.rename(columns={DEFAULT_GENRE_COL: genres_col})
-            cols.append(genres_col)
-        if year_col is not None:
-            item_df[year_col] = 2000
-            cols.append(year_col)
-        return item_df[cols]
 
     with download_path(local_cache_path) as path:
         filepath = os.path.join(path, "ml-{}.zip".format(size))

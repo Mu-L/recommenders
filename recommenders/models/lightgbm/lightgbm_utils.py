@@ -135,7 +135,7 @@ class NumEncoder(object):
             bit_len = len(bin(Max)) - 2
             samples = self.samples
             self.Max_len[item] = bit_len
-            res = unpackbits(feats, bit_len).reshape((samples, bit_len))
+            res = unpackbits(feats, bit_len).reshape((samples, -1))
             rows = np.concatenate([rows, res], axis=1)
             del feats
             gc.collect()
@@ -196,7 +196,7 @@ class NumEncoder(object):
         for item in tqdm(self.cate_cols):
             feats = df[item].values
             bit_len = self.Max_len[item]
-            res = unpackbits(feats, bit_len).reshape((samples, bit_len))
+            res = unpackbits(feats, bit_len).reshape((samples, -1))
             rows = np.concatenate([rows, res], axis=1)
             del feats
             gc.collect()
