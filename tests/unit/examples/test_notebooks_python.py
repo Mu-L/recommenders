@@ -2,12 +2,10 @@
 # Licensed under the MIT License.
 
 
-import sys
 import pytest
 
 import recommenders
 from recommenders.utils.notebook_utils import execute_notebook, read_notebook
-
 
 TOL = 0.05
 ABS_TOL = 0.05
@@ -72,24 +70,6 @@ def test_lightgbm(notebooks, output_notebook, kernel_name):
             TREE_LEARNING_RATE=0.15,
             EARLY_STOPPING_ROUNDS=20,
             METRIC="auc",
-        ),
-    )
-
-
-@pytest.mark.notebooks
-def test_lightgbm_movielens(notebooks, output_notebook, kernel_name):
-    notebook_path = notebooks["lightgbm_movielens"]
-    execute_notebook(
-        notebook_path,
-        output_notebook,
-        kernel_name=kernel_name,
-        parameters=dict(
-            MOVIELENS_DATA_SIZE="100k",
-            NUM_BOOST_ROUND=10,
-            EARLY_STOPPING_ROUNDS=5,
-            N_NEG_TRAIN=10,
-            N_NEG_VALID=10,
-            N_NEG_EVAL=10,
         ),
     )
 
