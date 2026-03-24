@@ -5,6 +5,7 @@ import pytest
 
 from recommenders.utils.notebook_utils import execute_notebook, read_notebook
 
+
 TOL = 0.05
 ABS_TOL = 0.05
 
