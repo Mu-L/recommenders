@@ -77,6 +77,17 @@ def test_lightgbm(notebooks, output_notebook, kernel_name):
 
 
 @pytest.mark.notebooks
+def test_lightgbm_movielens(notebooks, output_notebook, kernel_name):
+    notebook_path = notebooks["lightgbm_movielens"]
+    execute_notebook(
+        notebook_path,
+        output_notebook,
+        kernel_name=kernel_name,
+        parameters=dict(MOVIELENS_DATA_SIZE="mock100"),
+    )
+
+
+@pytest.mark.notebooks
 def test_cornac_deep_dive_runs(notebooks, output_notebook, kernel_name):
     notebook_path = notebooks["cornac_bpr_deep_dive"]
     execute_notebook(notebook_path, output_notebook, kernel_name=kernel_name)

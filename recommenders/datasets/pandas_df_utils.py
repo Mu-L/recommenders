@@ -271,6 +271,7 @@ def negative_feedback_sampler(
     col_label=DEFAULT_LABEL_COL,
     col_feedback="feedback",
     ratio_neg_per_user=1,
+    n_neg_per_user=None,
     pos_value=1,
     neg_value=0,
     seed=42,
@@ -295,6 +296,9 @@ def negative_feedback_sampler(
         ratio_neg_per_user (int): ratio of negative feedback w.r.t to the number of positive feedback for each user.
             If the samples exceed the number of total possible negative feedback samples, it will be reduced to the
             number of all the possible samples.
+        n_neg_per_user (int): fixed number of negative feedback samples per user. If specified, overrides
+            ratio_neg_per_user. If the samples exceed the number of total possible negative feedback samples,
+            it will be reduced to the number of all the possible samples.
         pos_value (float): value of positive feedback.
         neg_value (float): value of negative feedback.
         inplace (bool):
@@ -329,7 +333,11 @@ def negative_feedback_sampler(
     def sample_items(user_df):
         # Sample negative items for the data frame restricted to a specific user
         n_u = len(user_df)
-        neg_sample_size = max(round(n_u * ratio_neg_per_user), 1)
+        neg_sample_size = (
+            n_neg_per_user
+            if n_neg_per_user is not None
+            else max(round(n_u * ratio_neg_per_user), 1)
+        )
         # Draw (n_u + neg_sample_size) items and keep neg_sample_size of these
         # that are not already in user_df. This requires a set difference from items_sample
         # instead of items, which is more efficient when len(items) is large.
@@ -343,13 +351,15 @@ def negative_feedback_sampler(
                 col_label: neg_value,
             }
         )
-        return pd.concat([user_df, new_df], ignore_index=True)
+        return pd.concat(
+            [user_df.assign(**{col_user: user_df.name}), new_df], ignore_index=True
+        )
 
     res_df = df.copy()
     res_df[col_label] = pos_value
     return (
         res_df.groupby(col_user)
-        .apply(sample_items)
+        .apply(sample_items, include_groups=False)
         .reset_index(drop=True)
         .rename(columns={col_label: col_feedback})
     )

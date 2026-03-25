@@ -118,6 +118,21 @@ def test_lightgbm_quickstart_smoke(notebooks, output_notebook, kernel_name):
 
 
 @pytest.mark.notebooks
+def test_lightgbm_movielens_smoke(notebooks, output_notebook, kernel_name):
+    notebook_path = notebooks["lightgbm_movielens"]
+    execute_notebook(
+        notebook_path,
+        output_notebook,
+        kernel_name=kernel_name,
+        parameters=dict(MOVIELENS_DATA_SIZE="100k"),
+    )
+    results = read_notebook(output_notebook)
+
+    assert results["map_at_10"] == pytest.approx(0.1408, rel=TOL, abs=ABS_TOL)
+    assert results["ndcg_at_10"] == pytest.approx(0.2442, rel=TOL, abs=ABS_TOL)
+
+
+@pytest.mark.notebooks
 def test_cornac_bpr_smoke(notebooks, output_notebook, kernel_name):
     notebook_path = notebooks["cornac_bpr_deep_dive"]
     execute_notebook(
