@@ -140,4 +140,6 @@ To contributors: please add your name to the list when you submit a patch to the
 * **[Zhenhui Xu](https://github.com/motefly)**
    * Reco utils of LightGBM
    * LightGBM notebook quickstart
-    
+* **[ds-wook](https://github.com/ds-wook)**
+   * LightGBM ranking notebook with MovieLens dataset and LambdaRank documentation
+   * LightGBM Ranker integration and unit tests for ranking support 
