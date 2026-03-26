@@ -351,9 +351,10 @@ def negative_feedback_sampler(
                 col_label: neg_value,
             }
         )
-        return pd.concat(
+        combined = pd.concat(
             [user_df.assign(**{col_user: user_df.name}), new_df], ignore_index=True
         )
+        return combined[[col_user, col_item, col_label]]
 
     res_df = df.copy()
     res_df[col_label] = pos_value
