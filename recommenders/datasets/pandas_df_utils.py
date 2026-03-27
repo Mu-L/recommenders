@@ -358,9 +358,11 @@ def negative_feedback_sampler(
 
     res_df = df.copy()
     res_df[col_label] = pos_value
+    apply_kwargs = {"include_groups": False} if pd.__version__ >= "2.2.0" else {}
+
     return (
         res_df.groupby(col_user)
-        .apply(sample_items, include_groups=False)
+        .apply(sample_items, **apply_kwargs)
         .reset_index(drop=True)
         .rename(columns={col_label: col_feedback})
     )
