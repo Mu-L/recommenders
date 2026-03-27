@@ -1,7 +1,7 @@
 # Copyright (c) Recommenders contributors.
 # Licensed under the MIT License.
 
-
+import numpy as np
 import pandas as pd
 import os
 import tarfile
@@ -24,7 +24,12 @@ DEFAULT_HEADER = (
     + ["int{0:02d}".format(i) for i in range(13)]
     + ["cat{0:02d}".format(i) for i in range(26)]
 )
-
+CRITEO_DTYPES = (
+    [np.int8]
+    + [pd.UInt16Dtype(), pd.Int32Dtype(), pd.UInt16Dtype(), pd.UInt16Dtype(), pd.Int32Dtype(), pd.Int32Dtype(), pd.UInt16Dtype(), pd.UInt16Dtype(), pd.UInt16Dtype()]
+    + [pd.UInt8Dtype(), pd.UInt8Dtype(), pd.UInt16Dtype(), pd.UInt16Dtype()]
+    + [pd.StringDtype(storage="pyarrow")] * 26
+)           # Specify dtypes to reduce memory usage.
 
 def load_pandas_df(size="sample", local_cache_path=None, header=DEFAULT_HEADER):
     """Loads the Criteo DAC dataset as `pandas.DataFrame`. This function download, untar, and load the dataset.
@@ -57,7 +62,7 @@ def load_pandas_df(size="sample", local_cache_path=None, header=DEFAULT_HEADER):
     with download_path(local_cache_path) as path:
         filepath = download_criteo(size, path)
         filepath = extract_criteo(size, filepath)
-        df = pd.read_csv(filepath, sep="\t", header=None, names=header)
+        df = pd.read_csv(filepath, sep="\t", header=None, names=header, dtype={i: CRITEO_DTYPES[i] for i in range(40)})
     return df
 
 
