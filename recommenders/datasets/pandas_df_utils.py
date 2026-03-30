@@ -331,6 +331,10 @@ def negative_feedback_sampler(
     rng = np.random.default_rng(seed=seed)
 
     def sample_items(user_df):
+        # Save group key before dropping the groupby column (drop returns a new DataFrame
+        # without the .name attribute set by GroupBy)
+        user_id = user_df.name
+        user_df = user_df.drop(columns=[col_user])
         # Sample negative items for the data frame restricted to a specific user
         n_u = len(user_df)
         neg_sample_size = (
@@ -346,23 +350,22 @@ def negative_feedback_sampler(
         new_items = np.setdiff1d(items_sample, user_df[col_item])[:neg_sample_size]
         new_df = pd.DataFrame(
             data={
-                col_user: user_df.name,
+                col_user: user_id,
                 col_item: new_items,
                 col_label: neg_value,
             }
         )
         combined = pd.concat(
-            [user_df.assign(**{col_user: user_df.name}), new_df], ignore_index=True
+            [user_df.assign(**{col_user: user_id}), new_df], ignore_index=True
         )
         return combined[[col_user, col_item, col_label]]
 
     res_df = df.copy()
     res_df[col_label] = pos_value
-    apply_kwargs = {"include_groups": False} if pd.__version__ >= "2.2.0" else {}
 
     return (
         res_df.groupby(col_user)
-        .apply(sample_items, **apply_kwargs)
+        .apply(sample_items)
         .reset_index(drop=True)
         .rename(columns={col_label: col_feedback})
     )
