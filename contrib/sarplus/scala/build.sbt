@@ -16,7 +16,14 @@ lazy val commonSettings = Seq(
     Resolver.sonatypeRepo("snapshots"),
     Resolver.sonatypeRepo("releases"),
   ),
-  addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full),
+  libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, n)) if n >= 13 => Nil
+    case _ => Seq(compilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full))
+  }),
+  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, n)) if n >= 13 => Seq("-Ymacro-annotations")
+    case _ => Nil
+  }),
   sparkVer := sys.env.getOrElse("SPARK_VERSION", "3.2.1"),
   hadoopVer := sys.env.getOrElse("HADOOP_VERSION", "3.3.1"),
   libraryDependencies ++= Seq(
