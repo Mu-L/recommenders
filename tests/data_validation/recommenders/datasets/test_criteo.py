@@ -26,14 +26,14 @@ def test_criteo_load_pandas_df_sample(criteo_first_row):
     df = criteo.load_pandas_df(size="sample")
     assert df.shape[0] == 100000
     assert df.shape[1] == 40
-    assert df.loc[0].equals(pd.Series(criteo_first_row))
+    assert df.loc[0].replace(pd.NA, None).equals(pd.Series(criteo_first_row))
 
 
 def test_criteo_load_pandas_df_full(criteo_first_row):
     df = criteo.load_pandas_df(size="full")
     assert df.shape[0] == 45840617
     assert df.shape[1] == 40
-    assert df.loc[0].equals(pd.Series(criteo_first_row))
+    assert df.loc[0].replace(pd.NA, None).equals(pd.Series(criteo_first_row))
     del df
     gc.collect()
 
