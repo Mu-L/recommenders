@@ -185,3 +185,4 @@ pip-wheel*
 
 # Claude Code
 CLAUDE.md
+.claude/

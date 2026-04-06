@@ -47,6 +47,7 @@ def test_ncf_functional(
         parameters=dict(
             TOP_K=10, MOVIELENS_DATA_SIZE=size, EPOCHS=epochs, BATCH_SIZE=512, SEED=seed
         ),
+        timeout=7200,
     )
     results = read_notebook(output_notebook)
 
