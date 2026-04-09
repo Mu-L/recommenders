@@ -28,8 +28,7 @@ if HASH is not None:
 
 install_requires = [
     "category-encoders>=2.6.0,<3",  # requires packaging
-    "cornac>=1.15.2,<=2.2.2;python_version<='3.8'",
-    "cornac>=2.3.0,<3;python_version>='3.9'",  # requires packaging, tqdm
+    "cornac>=2.3.0,<3",  # requires packaging, tqdm
     "hyperopt>=0.2.7,<1",
     "lightgbm>=4.0.0,<5",
     "locust>=2.12.2,<3",  # requires jinja2
@@ -43,17 +42,14 @@ install_requires = [
     "retrying>=1.3.4,<2",
     "scikit-learn>=1.2.0,<2",  # requires scipy, and introduce breaking change affects feature_extraction.text.TfidfVectorizer.min_df
     "seaborn>=0.13.0,<1",  # requires matplotlib, packaging
-    "statsmodels<=0.14.1;python_version<='3.8'",
-    "statsmodels>=0.14.4;python_version>='3.9'",
+    "statsmodels>=0.14.4",
     "transformers>=4.27.0,<5",  # requires packaging, pyyaml, requests, tqdm
 ]
 
 # shared dependencies
 extras_require = {
     "gpu": [
-        "numpy<1.25.0;python_version<='3.8'",
         "nvidia-ml-py>=11.525.84",
-        "spacy<=3.7.5;python_version<='3.8'",
         "tensorflow>=2.8.4,!=2.9.0.*,!=2.9.1,!=2.9.2,!=2.10.0.*,<2.16",  # Fixed TF due to constant security problems and breaking changes #2073
         "tf-slim>=1.1.0",  # No python_requires in its setup.py
         "torch>=2.0.1,<3",
@@ -110,7 +106,6 @@ setup(
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
         "Topic :: Software Development :: Libraries :: Python Modules",
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
