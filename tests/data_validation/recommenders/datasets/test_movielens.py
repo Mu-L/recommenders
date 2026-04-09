@@ -39,7 +39,7 @@ from recommenders.datasets.movielens import (
 
 @pytest.mark.parametrize("size", [10, 100])
 def test_mock_movielens_schema__has_default_col_names(size):
-    df = MockMovielensSchema.example(size=size)
+    df = MockMovielensSchema.generate(size=size)
     for col_name in DEFAULT_HEADER:
         assert col_name in df.columns
 
@@ -62,7 +62,7 @@ def test_mock_movielens_schema__get_df_invalid_param__return_failure(keep_first_
 @pytest.mark.parametrize("keep_genre_col", [True, False])
 @pytest.mark.parametrize("keep_title_col", [True, False])
 @pytest.mark.parametrize("keep_first_n_cols", [None, 2])
-@pytest.mark.parametrize("seed", [-1])  # seed for pseudo-random # generation
+@pytest.mark.parametrize("seed", [42]) 
 @pytest.mark.parametrize("size", [0, 3, 10])
 def test_mock_movielens_schema__get_df__return_success(
     size, seed, keep_first_n_cols, keep_title_col, keep_genre_col
@@ -108,7 +108,7 @@ def test_load_pandas_df_mock_100__with_custom_param__succeed():
     assert type(df[DEFAULT_GENRE_COL]) == Series
     assert len(df) == 100
     assert "|" in df.loc[0, DEFAULT_GENRE_COL]
-    assert df.loc[0, DEFAULT_TITLE_COL] == "foo"
+    assert df.loc[0, DEFAULT_TITLE_COL].startswith("title_")
 
 
 @pytest.mark.parametrize("size", ["100k", "1m", "10m", "20m"])
@@ -343,7 +343,7 @@ def test_load_spark_df_mock_100__with_custom_param__succeed(spark):
     assert df.schema[DEFAULT_GENRE_COL]
     assert df.count() == 100
     assert "|" in df.take(1)[0][DEFAULT_GENRE_COL]
-    assert df.take(1)[0][DEFAULT_TITLE_COL] == "foo"
+    assert df.take(1)[0][DEFAULT_TITLE_COL].startswith("title_")
 
 
 @pytest.mark.spark

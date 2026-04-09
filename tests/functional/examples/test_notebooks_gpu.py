@@ -47,6 +47,7 @@ def test_ncf_functional(
         parameters=dict(
             TOP_K=10, MOVIELENS_DATA_SIZE=size, EPOCHS=epochs, BATCH_SIZE=512, SEED=seed
         ),
+        timeout=7200,
     )
     results = read_notebook(output_notebook)
 
@@ -607,17 +608,15 @@ def test_cornac_bivae_functional(
 @pytest.mark.gpu
 @pytest.mark.notebooks
 @pytest.mark.parametrize(
-    "data_dir, num_epochs, batch_size, model_name, expected_values",
+    "num_epochs, batch_size, model_name, expected_values",
     [
         (
-            os.path.join("tests", "recsys_data", "RecSys", "SASRec-tf2", "data"),
             1,
             128,
             "sasrec",
             {"ndcg@10": 0.2297, "Hit@10": 0.3789},
         ),
         (
-            os.path.join("tests", "recsys_data", "RecSys", "SASRec-tf2", "data"),
             1,
             128,
             "ssept",
@@ -629,13 +628,15 @@ def test_sasrec_quickstart_functional(
     notebooks,
     output_notebook,
     kernel_name,
-    data_dir,
+    tmp_path,
     num_epochs,
     batch_size,
     model_name,
     expected_values,
 ):
     notebook_path = notebooks["sasrec_quickstart"]
+    data_dir = str(tmp_path / "data")
+    os.makedirs(data_dir, exist_ok=True)
     params = {
         "data_dir": data_dir,
         "num_epochs": num_epochs,

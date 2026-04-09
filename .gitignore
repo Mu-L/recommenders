@@ -168,6 +168,7 @@ nohup.out
 *.woff
 *.woff2
 *.eot
+uv.lock
 
 #####  kdd 2020 tutorial data folder
 examples/07_tutorials/KDD2020-tutorial/data_folder/
@@ -181,3 +182,7 @@ reports/
 
 ### pip folders
 pip-wheel*
+
+# Claude Code
+CLAUDE.md
+.claude/

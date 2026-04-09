@@ -20,7 +20,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
     Download the dataset for hands on experiments and unzip to data_folder:
     ```bash
-    wget https://recodatasets.z20.web.core.windows.net/kdd2020/data_folder.zip
+    wget https://huggingface.co/datasets/Recommenders/kdd2020/resolve/main/data_folder.zip
     unzip data_folder.zip -d data_folder
     ```
 

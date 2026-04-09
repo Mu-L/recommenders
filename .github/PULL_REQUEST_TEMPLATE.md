@@ -1,19 +1,18 @@
 ### Description
-
 <!--- Describe your changes in detail -->
 <!--- Why is this change required? What problem does it solve? -->
 
-### Related Issues
 
+### Related Issues
 <!--- If it fixes an open issue, please link to the issue here. -->
 
-### References
 
+### References
 <!--- References would be helpful to understand the changes. -->
 <!--- References can be books, links, etc. -->
 
-### Checklist:
 
+### Checklist:
 <!--- Go over all the following points, and put an `x` in all the boxes that apply. -->
 <!--- If you're unsure about any of these, don't hesitate to ask. We're here to help! -->
 

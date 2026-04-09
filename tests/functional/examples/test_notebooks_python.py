@@ -265,6 +265,21 @@ def test_xlearn_fm_functional(notebooks, output_notebook, kernel_name):
 
 
 @pytest.mark.notebooks
+def test_lightgbm_movielens_functional(notebooks, output_notebook, kernel_name):
+    notebook_path = notebooks["lightgbm_movielens"]
+    execute_notebook(
+        notebook_path,
+        output_notebook,
+        kernel_name=kernel_name,
+        parameters=dict(MOVIELENS_DATA_SIZE="1m"),
+    )
+    results = read_notebook(output_notebook)
+
+    assert results["map_at_10"] == pytest.approx(0.1762, rel=TOL, abs=ABS_TOL)
+    assert results["ndcg_at_10"] == pytest.approx(0.3184, rel=TOL, abs=ABS_TOL)
+
+
+@pytest.mark.notebooks
 @pytest.mark.parametrize(
     "size, algos, expected_values_ndcg",
     [

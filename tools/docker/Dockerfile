@@ -16,24 +16,32 @@ ARG COMPUTE="cpu"
 # Choose an appropriate CPU compute image
 #####################################################################
 # * [buildpack-deps:24.04](https://github.com/docker-library/buildpack-deps/blob/master/ubuntu/noble/Dockerfile)
-#   + [Created on 2024-08-17](https://hub.docker.com/layers/library/buildpack-deps/noble/images/sha256-dbfee7e7ee2340b0d6567efd3a8a9281ce45ee78598485b4d7a7f09fe641811a)
-FROM buildpack-deps@sha256:dbfee7e7ee2340b0d6567efd3a8a9281ce45ee78598485b4d7a7f09fe641811a AS cpu
+#   + [Created on 2025-11-14](https://hub.docker.com/layers/library/buildpack-deps/noble/images/sha256-40ee16e3f341497dfd8ae089abe47e60447f714389028726a8c21a75ac405be3)
+FROM buildpack-deps:24.04@sha256:40ee16e3f341497dfd8ae089abe47e60447f714389028726a8c21a75ac405be3 AS cpu
+
+# unzip and zip is required by SDKMAN!
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive \
+    apt-get install -y zip unzip
 
 
 #####################################################################
 # Compute Stage - GPU
 # Choose an appropriate GPU compute image
 #####################################################################
-# * [nvidia/cuda:12.6.1-devel-ubuntu24.04](https://gitlab.com/nvidia/container-images/cuda/-/blob/master/dist/12.6.1/ubuntu2404/devel/Dockerfile)
-#   + [Created on 2024-09-13](https://hub.docker.com/layers/nvidia/cuda/12.6.1-devel-ubuntu24.04/images/sha256-bfc293f21611f3c47a3442cf6516ebfe99d529926a4bef4bc389ef02fd038800)
+# * [nvidia/cuda:12.8.1-devel-ubuntu24.04](https://gitlab.com/nvidia/container-images/cuda/-/blob/master/dist/12.8.1/ubuntu2404/devel/Dockerfile?ref_type=heads)
+#   + [Created on 2025-03-14](https://hub.docker.com/layers/nvidia/cuda/12.8.1-devel-ubuntu24.04/images/sha256-4b9ed5fa8361736996499f64ecebf25d4ec37ff56e4d11323ccde10aa36e0c43)
 # * See also [AML GPU Base Image](https://github.com/Azure/AzureML-Containers/blob/master/base/gpu/openmpi4.1.0-cuda11.8-cudnn8-ubuntu22.04)
-FROM nvcr.io/nvidia/cuda:12.6.1-devel-ubuntu24.04@sha256:bfc293f21611f3c47a3442cf6516ebfe99d529926a4bef4bc389ef02fd038800 AS gpu
+FROM nvidia/cuda:12.8.1-devel-ubuntu24.04@sha256:4b9ed5fa8361736996499f64ecebf25d4ec37ff56e4d11323ccde10aa36e0c43 AS gpu
 
-RUN apt-get update && \
+# curl, unzip and zip is required by SDKMAN!
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
     DEBIAN_FRONTEND=noninteractive \
-    apt-get install -y wget git && \
-    apt-get clean -y && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y git zip unzip curl
 
 
 #####################################################################
@@ -43,85 +51,81 @@ RUN apt-get update && \
 #####################################################################
 FROM ${COMPUTE} AS deps
 
+ARG COMPUTE
+
 # Valid versions: 3.9, 3.10, 3.11
 ARG PYTHON_VERSION="3.11"
 
+# Extra dependencies: dev, gpu, spark
+ARG EXTRAS=""
+
+ARG RECO_VENV_DIR=/root/.venvs/Recommenders
+
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 
-WORKDIR /root
 USER root:root
 
-SHELL ["/bin/bash", "-c"]
+# uv is in /root/.local/bin and is available after using bash -l
+SHELL ["/bin/bash", "-lc"]
 
-# Install Python and uv
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive \
-    apt-get install -y software-properties-common && \
-    add-apt-repository -y ppa:deadsnakes/ppa && \
-    apt-get update && \
-    apt-get install -y python${PYTHON_VERSION} python${PYTHON_VERSION}-venv python${PYTHON_VERSION}-dev && \
-    apt-get clean -y && \
-    rm -rf /var/lib/apt/lists/*
+# Install yq
+# See https://github.com/mikefarah/yq
+RUN curl -LsSf https://github.com/mikefarah/yq/releases/download/v4.49.2/yq_linux_amd64.tar.gz | \
+    tar xz && mv yq_linux_amd64 /usr/local/bin/yq
+
+# Install SDKMAN!
+RUN curl -LsSf "https://get.sdkman.io?ci=true" | bash
+
+# Install OpenJDK
+# sdk is available after source /root/.sdkman/bin/sdkman-init.sh
+RUN if [[ "${EXTRAS}" =~ spark ]]; then \
+      source /root/.sdkman/bin/sdkman-init.sh; \
+      sdk install java 21.0.2-open; \
+      sdk use java 21.0.2-open; \
+    fi
 
 # Install uv
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.local/bin:${PATH}"
+RUN curl -LsSf https://astral.sh/uv/install.sh | bash
 
 # Create virtual environment with uv
-RUN uv venv /root/.venvs/Recommenders --python python${PYTHON_VERSION}
-
-# Activate virtual environment by default
-ENV VIRTUAL_ENV="/root/.venvs/Recommenders"
-ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
+ENV UV_LINK_MODE=copy
+ENV UV_PYTHON_CACHE_DIR=/opt/uv-cache/uv/python
+ENV UV_CACHE_DIR=/opt/uv-cache/
+RUN --mount=type=cache,target=/opt/uv-cache/uv/python \
+    uv venv --python ${PYTHON_VERSION} ${RECO_VENV_DIR}
 
 
 #####################################################################
 # Final Stage
-# Install Recommenders
+# Install Recommenders and its dependencies
 #####################################################################
 FROM deps AS final
-
-# Extra dependencies: dev, gpu, spark
-ARG EXTRAS=""
 
 # Git ref of Recommenders to install: main, staging, etc.
 # Empty value ("") indicates editable installation of current clone
 ARG GIT_REF="main"
 
-ARG JDK_VERSION="21"
-
 ARG RECO_DIR="/root/Recommenders"
 
-# Install Java (Temurin) for Spark support if needed
-RUN if [[ "${EXTRAS}" =~ spark ]]; then \
-        apt-get update && \
-        apt-get install -y wget apt-transport-https gpg && \
-        wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor -o /usr/share/keyrings/adoptium.gpg && \
-        echo "deb [signed-by=/usr/share/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb $(. /etc/os-release && echo $VERSION_CODENAME) main" | tee /etc/apt/sources.list.d/adoptium.list && \
-        apt-get update && \
-        apt-get install -y temurin-${JDK_VERSION}-jdk && \
-        apt-get clean -y && \
-        rm -rf /var/lib/apt/lists/*; \
-    fi
-
-# Set JAVA_HOME for Spark
-ENV JAVA_HOME="/usr/lib/jvm/temurin-${JDK_VERSION}-jdk-amd64"
-ENV PATH="${JAVA_HOME}/bin:${PATH}"
+WORKDIR ${RECO_DIR}
 
 # Copy Recommenders into the image
 COPY ./ ${RECO_DIR}
 
-# Install Recommenders and its dependencies using uv
-RUN if [ -z "${GIT_REF}" ]; then \
-        uv pip install ${RECO_DIR}${EXTRAS}; \
+# Install Recommenders
+RUN --mount=type=cache,target=/opt/uv-cache/ \
+    source ${RECO_VENV_DIR}/bin/activate && \
+    if [ -z "${GIT_REF}" ]; then \
+        uv pip install "recommenders${EXTRAS} @ ."; \
     else \
-        uv pip install recommenders${EXTRAS}@git+https://github.com/recommenders-team/recommenders.git@${GIT_REF}; \
-    fi && \
-    uv pip install jupyter ipykernel && \
+        uv pip install recommenders${EXTRAS} @ git+https://github.com/recommenders-team/recommenders@${GIT_REF}; \
+    fi
+
+# Setup Jupyter notebook
+RUN source ${RECO_VENV_DIR}/bin/activate && \
     jupyter notebook --generate-config && \
     echo "c.MultiKernelManager.default_kernel_name = 'Recommenders'" >> /root/.jupyter/jupyter_notebook_config.py && \
     python -m ipykernel install --user --name Recommenders --display-name "Python (Recommenders)"
 
-# Setup Jupyter notebook
 EXPOSE 8888
-CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root", "--ServerApp.allow_origin='*'", "--IdentityProvider.token=''"]
+CMD source /root/.sdkman/bin/sdkman-init.sh && source ${RECO_VENV_DIR}/bin/activate && jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root --ServerApp.allow_origin='*' --IdentityProvider.token=''

@@ -61,8 +61,7 @@ After an Databricks cluster is provisioned:
 # 3. In the popup window, select "PyPI" as the library source. Enter "recommenders[examples]" as the package name. Click "Install" to install the package.
 # 4. Now, repeat the step 3 for below packages:
 #   a. numpy<2.0.0
-#   b. pandera<=0.18.3
-#   c. scipy<=1.13.1
+#   b. scipy<=1.13.1
 ```
 
 ### Prepare Azure Databricks for Operationalization
@@ -229,7 +228,7 @@ $\to$ Create codespaces on the branch.
 
 [Dockerfile](./tools/docker/Dockerfile) is used in 3 places:
 * Dev containers on VS Code and GitHub Codespaces
-* [Testing workflows on AzureML](./tests/README.md)
+* [Testing workflows on GitHub Actions](./tests/README.md)
 * [Jupyter notebook examples on Docker](./tools/docker/README.md)
 
 </details>

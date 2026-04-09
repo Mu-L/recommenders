@@ -64,7 +64,7 @@ class RBM:
         3) Optimization:
         The free energy of the visible units given the hidden is evaluated at the beginning (F_0)
         and after k steps of Bernoulli sampling (F_k). The weights and biases are updated by
-        minimizing the differene F_0 - F_k.
+        minimizing the difference F_0 - F_k.
 
         4) Inference:
         Once the joint probability distribution P(v,h) is learned, this is used to generate ratings
@@ -94,7 +94,7 @@ class RBM:
         # percentage of the total training epoch when the step increases by 1
         self.sampling_protocol = sampling_protocol
 
-        # if true, functions print their control paramters and/or outputs
+        # if true, functions print their control parameters and/or outputs
         self.debug = debug
 
         # if true, compute msre and accuracy during training

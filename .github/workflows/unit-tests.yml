@@ -1,0 +1,42 @@
+# ---------------------------------------------------------
+# Copyright (c) Recommenders contributors.
+# Licensed under the MIT License.
+# ---------------------------------------------------------
+
+name: unit-tests
+
+on:
+  pull_request:
+    branches:
+      - staging
+      - main
+    paths:
+      # Tests will be run only when there are changes in the code:
+      - examples/**
+      - '!examples/**/*.md'
+      - recommenders/**
+      - '!recommenders/**/*.md'
+      - tests/**
+      - '!tests/**/*.md'
+      - setup.py
+      - .github/**
+    types: 
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+  # Enable manual trigger
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: 'Tags to label this manual run (optional)'
+        default: 'Manual trigger'
+
+jobs:
+  run-tests:
+    uses: ./.github/workflows/tests.yml
+    if: github.event.pull_request.draft == false
+    with:
+      timeout-minutes: 180  # Timeout for all the processes, not each VMs (not all VMs are deployed at the same time)
+      type: pr_gate

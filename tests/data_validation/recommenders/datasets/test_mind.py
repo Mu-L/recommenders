@@ -12,54 +12,54 @@ from recommenders.datasets.mind import download_mind, extract_mind
     "url, content_length, etag",
     [
         (
-            "https://recodatasets.z20.web.core.windows.net/newsrec/MINDdemo_train.zip",
+            "https://huggingface.co/datasets/Recommenders/MIND/resolve/main/MINDdemo_train.zip",
             "17372879",
-            '"0x8D8B8AD5B233930"',
-        ),  # NOTE: the z20 blob returns the etag with ""
+            '"66b4bd16ce4322e71ed7f2ec238cf0708d6b0b04651fe7e9bae7b7dd5e17bc40"',
+        ),
         (
-            "https://recodatasets.z20.web.core.windows.net/newsrec/MINDdemo_dev.zip",
+            "https://huggingface.co/datasets/Recommenders/MIND/resolve/main/MINDdemo_dev.zip",
             "10080022",
-            '"0x8D8B8AD5B188839"',
+            '"99def74b59c7e423854b79d4b68757e9e49813d8fc0cce6ee172bf5b3240f01d"',
         ),
         (
-            "https://recodatasets.z20.web.core.windows.net/newsrec/MINDdemo_utils.zip",
+            "https://huggingface.co/datasets/Recommenders/MIND/resolve/main/MINDdemo_utils.zip",
             "97292694",
-            '"0x8D8B8AD5B126C3B"',
+            '"0b887006ffc2db8572366ae7d529c9eee24f0eb915c75ffc0963437655b10711"',
         ),
         (
-            "https://recodatasets.z20.web.core.windows.net/newsrec/MINDsmall_train.zip",
+            "https://huggingface.co/datasets/Recommenders/MIND/resolve/main/MINDsmall_train.zip",
             "52994575",
-            '"0x8DCC5A830190676"',
+            '"0d6d50cfb534b494a1153694f8a488170b28b0ac1c254363b565aa6b11c7761f"',
         ),
         (
-            "https://recodatasets.z20.web.core.windows.net/newsrec/MINDsmall_dev.zip",
+            "https://huggingface.co/datasets/Recommenders/MIND/resolve/main/MINDsmall_dev.zip",
             "30948560",
-            '"0x8DCC5A82E182A0F"',
+            '"e3db712b7eb4339bc1729c5a0075c2e8204107690f9d5f0f974de4852622564f"',
         ),
         (
-            "https://recodatasets.z20.web.core.windows.net/newsrec/MINDsmall_utils.zip",
+            "https://huggingface.co/datasets/Recommenders/MIND/resolve/main/MINDsmall_utils.zip",
             "155178106",
-            '"0x8D8B8AD5B3677C6"',
+            '"8047c5282f4ee819389e6ad757841e93705a7988af7d851184047c05337114ed"',
         ),
         (
-            "https://recodatasets.z20.web.core.windows.net/newsrec/MINDlarge_train.zip",
+            "https://huggingface.co/datasets/Recommenders/MIND/resolve/main/MINDlarge_train.zip",
             "531360717",
-            '"0x8DCC5A8375BDC1D"',
+            '"6a73f3b9ab3ba208895a18c1ac542dcf6bc9c7b817af433e60282d041cfec427"',
         ),
         (
-            "https://recodatasets.z20.web.core.windows.net/newsrec/MINDlarge_dev.zip",
+            "https://huggingface.co/datasets/Recommenders/MIND/resolve/main/MINDlarge_dev.zip",
             "103592887",
-            '"0x8DCC5A82FE8609C"',
+            '"526a6486eed6b4053b9460c42aac7239c1234cfecaf82a3c345b742d3521642f"',
         ),
         (
-            "https://recodatasets.z20.web.core.windows.net/newsrec/MINDlarge_utils.zip",
+            "https://huggingface.co/datasets/Recommenders/MIND/resolve/main/MINDlarge_utils.zip",
             "150359301",
-            '"0x8D8B8AD5B2ED4C9"',
+            '"8e05c4c768336dd8af8bd05d098a3572f657c984a5415e64fc85aaa315a32e15"',
         ),
     ],
 )
 def test_mind_url(url, content_length, etag):
-    url_headers = requests.head(url).headers
+    url_headers = requests.head(url, allow_redirects=True).headers
     assert url_headers["Content-Length"] == content_length
     assert url_headers["ETag"] == etag
 
